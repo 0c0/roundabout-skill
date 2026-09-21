@@ -10,9 +10,14 @@ agent_created: true
 **不碰画布、不改代码**：在 ComfyUI 里搭好的流程 → 导出 API 格式 JSON → 在 `models.yaml` 写一段
 参数映射 → 就成了一个可被任意客户端调用的 `model`。
 
-- **路径约定**：`<ComfyUI>` = 本机 ComfyUI 安装目录（形如 `X:/.../ComfyUI`）。
+- **路径约定**：`<ComfyUI>` = ComfyUI 安装目录（形如 `X:/.../ComfyUI`）。
+- **这几个值不要猜，按顺序拿**：
+  1. `<ComfyUI>`：先反推 —— 手上只要有 `custom_nodes/<节点>/` 下的任意文件，它的上两级就是 `<ComfyUI>`；反推不出来就问用户「ComfyUI 装在哪个目录」。
+  2. `<ComfyUI python>`：按序探测 `<ComfyUI>/../python/python.exe`（aki 便携包）→ `<ComfyUI>/../python_embeded/python.exe`（官方 portable）→ `sys.executable`；都不成立就问用户。
+  3. 宿主与端口：默认 `8188`（ComfyUI 自身端口，REST 与 MCP 共用）。**别硬编内网地址** —— 先 `GET http://127.0.0.1:8188/health` 探，探不到再问用户「平时怎么访问 ComfyUI」。
+  探到的值可以就近记下来，但**不要写回本 skill**（skill 要能跨机器用）。
 - 项目根：`<ComfyUI>/custom_nodes/ComfyUI-Roundabout/`
-- ComfyUI python（跑测试 / 带 aiohttp 的脚本）：用安装包自带的解释器 —— aki 便携包在 `<ComfyUI>/../python/python.exe`、官方 portable 在 `<ComfyUI>/../python_embeded/python.exe`（下文记作 `<ComfyUI python>`）
+- ComfyUI python（跑测试 / 带 aiohttp 的脚本）：用安装包自带的解释器（下文记作 `<ComfyUI python>`，取法见上）
 - 端点：REST `/v1/*` 与 MCP `/mcp` 都挂在 **ComfyUI 端口**（默认 8188）
 - 对外 MCP 还有一处宿主挂载：`http://<宿主地址>:8188/mcp`（注册名 `comfyui-roundabout`）
 
