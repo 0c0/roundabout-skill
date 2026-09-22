@@ -35,6 +35,7 @@
 | `POST /admin/reload` | 热加载 `models.yaml` + `workflows/` |
 | `GET /roundabout/admin/queue` | 队列监控合并视图（每条含 seed） |
 | `GET /roundabout/admin/queue/workflow/{prompt_id}` | 取提交图快照（队列 → history → 任务快照） |
+| `GET /roundabout/admin/weights` | 权重体检：内置工作流当前缺哪些权重 + 每条的下载命令 |
 | `GET /roundabout/view` | 可视化页面（浏览 input/output + 实时进度） |
 
 管理端点（`/roundabout/admin/*`，工作流上传/删除、`models.yaml` 读写与结构化编辑）见仓库 `API.md`。
@@ -43,7 +44,7 @@
 
 `generate_image` · `edit_image` · `remove_background` · `generate_video` ·
 `list_models` · `get_task` · `cancel_task` · `queue_status` · `get_workflow` ·
-`reload` · `health` · `get_view_url` · `get_skills`
+`reload` · `health` · `get_view_url` · `get_skills` · `check_weights`
 
 传输 `streamable-http`，端点 `/mcp`（与 ComfyUI 同端口），与 REST 完全互通。
 实际工具数以 `tools/list` 为准。

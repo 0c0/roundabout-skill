@@ -2,14 +2,38 @@
 
 Roundabout **不含任何权重**。内置工作流要跑起来，得先把权重备齐。
 
+## 先看报错与体检，不用人工比对清单
+
+缺权重时 ComfyUI 会在提交前就拒掉（combo 校验），网关**把那条 400 改写成可执行的下载指引**，
+文件名、目标目录、`curl` 命令都在响应里：
+
+```
+ComfyUI rejected the workflow: ... Value not in list (unet_name: 'x.safetensors' not in [...])
+这不是参数写错 —— 是权重文件没装（ComfyUI 把本地已装的列成了候选值，缺的那个不在里面）。
+该文件未安装：x.safetensors
+  目标目录：<ComfyUI>/models/diffusion_models/（7.26 GB，来自 Comfy-Org/...）
+  下载：curl -L -o ...
+```
+
+⚠️ 「不是参数错、是文件没装」这层判断很关键：光看 `Value not in list` 极易误判成参数写错。
+网关只在**索引里查得到**该文件名时才改写 —— 认不出（`LoadImage` 的输入图、别人自加工作流的权重）
+就保持原报错，不会给出错的下载地址。
+
+要**主动**查还缺哪些（首次部署、换模型前）：REST `GET /roundabout/admin/weights`
+（`?unreferenced=1` 附带无工作流引用的条目，`?mirror=modelscope` 换下载源）或 MCP `check_weights`。
+两者都只对文件做一次 `isfile`，不占 GPU、不触发生成；**没有**任何启动预扫或每发生成前的 preflight。
+
+数据源是仓库根的 **`weights.yaml`**（文件名 → `dir` / `repo` / repo 内路径 + 镜像与改名表），
+README 那张人读的清单由 `tests/test_weights_index.py` 守着与它一致。
+
 ## 规模速查
 
 | 口径 | 数量级 |
 |---|---|
 | 内置工作流 | 图像档 / 视频档 / 工具档三族（支数以 `workflows/` 实际文件与 `models.yaml` 为准） |
 | 实际引用的权重文件 | 二十上下 |
-| 合计 | 约 200 GB 量级（图像档约 77 GB / 视频档约 120 GB） |
-| 只想先跑图像 | **约 77 GB**，可以先只下这一族 |
+| 合计 | **百 GB 量级**（图像档数十 GB、视频档百 GB 级；精确值见 README 清单节，会随工作流增减而变） |
+| 只想先跑图像 | 只下**图像族**即可，量级为数十 GB —— 这是最低门槛的起步法 |
 
 **权威清单在 `README.md` 的「权重清单」节**（逐文件的体积 / 目标目录 / HF repo / repo 内路径 +
 现成的 `curl` 命令），且**引用数要用脚本遍历 `workflows/*.json` 枚举**，别沿用文档里的旧数。

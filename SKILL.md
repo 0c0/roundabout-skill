@@ -36,7 +36,7 @@ agent_created: true
 |---|---|
 | 要调用（选哪支模型、传什么参数、异步任务、拿产物、运维） | `references/usage.md` |
 | 要把新工作流接进网关 / 摘掉某个档 | `references/add-model.md` |
-| 权重下不下来、该下哪些、放哪个目录、文件名对不上 | `references/weights.md` |
+| 权重下不下来、该下哪些、放哪个目录、文件名对不上、报错说 `Value not in list` | `references/weights.md` |
 | 要核「文档说的和实现是否一致」 | `references/doc-audit.md` |
 
 ## 三条最容易踩的机制（先记住再动手）
@@ -88,6 +88,7 @@ curl -X POST http://127.0.0.1:8188/admin/reload
 # 当前状态
 curl http://127.0.0.1:8188/health                    # 含模型清单 —— 只看总数会被「删 2 加 2」骗过
 curl http://127.0.0.1:8188/roundabout/admin/queue    # 队列
+curl http://127.0.0.1:8188/roundabout/admin/weights  # 权重体检（缺哪些 + 下载命令）
 ```
 
 ## 提交前的三条自检
