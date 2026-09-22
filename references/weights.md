@@ -130,11 +130,11 @@ hf download Comfy-Org/MiniMax-H3 diffusion_models/minimax_h3_fl2va_int8_convrot.
 - `qwen3vl_8b_fp8_scaled.safetensors` 被 Boogu 全系与 `flux2-klein-image-edit-turbo` **共用**，
   下一个文件够多个模型用。
 - ⚠️ **同名不同文件**：Qwen-Image 2.1 的文本编码器叫 `qwen3vl_8b_int8_convrot.safetensors`，与上面那个 `qwen3vl_8b_fp8_scaled.safetensors` **只是精度后缀不同、来自不同仓库**，别互相顶替（工作流按文件名引用，顶替了不一定报错）。同仓库还有一路 `qwen3.5_9b_qwen_image_2.1_pe_{t2i,i2i}.int8_convrot`「PE」编码器，内置工作流不用。
-- `ae.safetensors`（fp32 0.34 GB）与 `flux1_vae_bf16.safetensors`（bf16 0.17 GB）是**同一个
-  FLUX.1 Autoencoder 的两种精度副本**（244/244 张量在 bf16 下逐位相同）。**内置工作流已统一用
-  bf16 那份**：ComfyUI 默认按 bf16 加载 VAE（`working_dtypes = [bf16, fp32]`），读 `ae` 会先
-  下转为 bf16，与 `flux1_vae_bf16` 完全等同（同 latent 解码 `max|Δ| = 0`）。`ae.safetensors`
-  仅当启动加 `--fp32-vae` 时才有理论优势（多 2 位尾数，实测上限 ≤2/255）。
+- `flux1_vae_bf16.safetensors` 是 Z-Image / Boogu 全系要的 VAE，**不用另找 `ae.safetensors`**：
+  两者是同一个 FLUX.1 Autoencoder 的 fp32 / bf16 副本（244/244 张量在 bf16 下逐位相同），而
+  ComfyUI 默认按 bf16 加载 VAE（`working_dtypes = [bf16, fp32]`）⇒ 解码逐像素相同
+  （同 latent `max|Δ| = 0`）。图像档一律用体积减半的 bf16 那份（`ae` 只在启动加 `--fp32-vae`
+  时才多 2 位尾数，实测上限 ≤2/255）。
 - `flux-2-klein-9b-kv-fp8.safetensors` 来自 **Black Forest Labs 官方仓库**（不在 Comfy-Org）；
   Comfy-Org 只提供了它的 VAE 与文本编码器仓库（`vae-text-encorder-for-flux-klein-9b`，官方拼写如此）。
 
