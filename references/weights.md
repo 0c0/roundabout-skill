@@ -4,22 +4,22 @@ Roundabout **不含任何权重**。内置工作流要跑起来，得先把权�
 
 ## 规模速查
 
-| 口径 | 数字 |
+| 口径 | 数量级 |
 |---|---|
-| 内置工作流 | 15 支（8 图像 + 6 视频 + 1 工具） |
-| 实际引用的权重文件 | **20 个** |
-| 合计 | 约 **198 GB**（图像档约 77 GB / 视频档约 121 GB） |
-| 权重清单表行数 | **23 行** —— 另 3 行是**当前无内置引用**的 LoRA（2 个 Acc LoRA + 1 个已下线档的 hyperflow LoRA），计入则约 205 GB |
+| 内置工作流 | 图像档 / 视频档 / 工具档三族（支数以 `workflows/` 实际文件与 `models.yaml` 为准） |
+| 实际引用的权重文件 | 二十上下 |
+| 合计 | 约 200 GB 量级（图像档约 77 GB / 视频档约 120 GB） |
 | 只想先跑图像 | **约 77 GB**，可以先只下这一族 |
 
-例外：`workflows/example_txt2img.json` 是接入样本，用你自己的 checkpoint，**不计入这 20 个**。
-
 **权威清单在 `README.md` 的「权重清单」节**（逐文件的体积 / 目标目录 / HF repo / repo 内路径 +
-现成的 `curl` 命令）。本节只记「怎么下不踩坑」。
+现成的 `curl` 命令），且**引用数要用脚本遍历 `workflows/*.json` 枚举**，别沿用文档里的旧数。
+本节只记「怎么下不踩坑」。
+
+例外：`workflows/example_txt2img.json` 是接入样本，用你自己的 checkpoint，**不计入引用数**。
 
 ## 三个必知的坑
 
-### 1. 只有一个文件必须下载后改名
+### 1. 有一个文件必须下载后改名
 
 | 上游文件名 | 工作流引用的名字 |
 |---|---|
@@ -62,8 +62,8 @@ hf download Comfy-Org/MiniMax-H3 diffusion_models/minimax_h3_fl2va_int8_convrot.
 
 ## 量化变体：选错在旧卡上直接跑不了
 
-- 视频/VLM 侧大量用 `int8_convrot` —— 它在 Ada / Ampere 上都能跑，是**本机的通用解**。
-- `nvfp4_awq` 系列**需要 Blackwell**（50 系）。在 4090（Ada，SM 8.9）上要换成 `int8_convrot`。
+- 视频/VLM 侧大量用 `int8_convrot` —— 它在 Ada / Ampere 上都能跑，是**通用解**。
+- `nvfp4_awq` 系列**需要 Blackwell**（50 系）。在 Ada（SM 8.9）卡上要换成 `int8_convrot`。
 - 想省显存可以换更小的量化版（`nvfp4` / `pruned_int8_convrot` 等，同仓库同目录下就有），
   但**必须同步改工作流 JSON 里的文件名** —— 权重名与 JSON 是硬绑定。
 
@@ -79,17 +79,17 @@ hf download Comfy-Org/MiniMax-H3 diffusion_models/minimax_h3_fl2va_int8_convrot.
 
 - **`alibaba-pai/MiniMax-H3-Acc-LoRAs` 里的 Acc LoRA 是 diffusers 命名**
   （`transformer_blocks.*`），ComfyUI 普通加载器只认 `diffusion_model.blocks.*` ⇒
-  **728 个 key 全 warning、零 patch**，等于没挂。要走 PDD 专用节点（`MiniMaxH3PDDAccApply`）。
+  **key 全 warning、零 patch**，等于没挂。要走 PDD 专用节点（`MiniMaxH3PDDAccApply`）。
 - 能直接用普通加载器的是 **ComfyUI 命名**的那批，在 `Comfy-Org/MiniMax-H3` 的 `loras/` 下，
   名字带 `_comfyui_` 标识（如 `minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors`）。
-- **社区转换版有真坑先例**：`drbaph/...hyperflow..._comfyui_bf16` 转换时把端点适配器
-  `endpoint_time_embedder.*` 并进了 `time_embedder.proj_in/proj_out`，本机实测**端点条件进不了模型**
-  （画面出现非单段式晕开）。对应档已下线；要完整效果得上游原版 + 专用节点包。
+- **社区转换版要当心**：有转换版把端点适配器 `endpoint_time_embedder.*` 并进了
+  `time_embedder.proj_in/proj_out`，**端点条件进不了模型**（画面出现非单段式晕开）。
+  要完整效果得上游原版 + 专用节点包。
 
 ## 共用与可替换关系（省下载量）
 
 - `qwen3vl_8b_fp8_scaled.safetensors` 被 Boogu 全系与 `flux2-klein-image-edit-turbo` **共用**，
-  下一个文件够三个模型用。
+  下一个文件够多个模型用。
 - `ae.safetensors`（fp32 0.34 GB）与 `flux1_vae_bf16.safetensors`（bf16 0.17 GB）是**同一个
   FLUX.1 Autoencoder 的两种精度**，按文件名被不同工作流引用 —— 名字不同就必须都存在。
   只跑 `boogu-image-edit` 而没跑 `z-image` 时，可以把 bf16 那份复制一份改名成 `ae.safetensors` 用

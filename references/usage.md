@@ -1,6 +1,8 @@
 # 调用面：端点、选型、参数、运维
 
-## 1. 模型选型（15 支）
+## 1. 模型选型
+
+**权威名册在 `models.yaml`**（`GET /v1/models` 看当前实例的实际注册结果）。按用途挑：
 
 | 用途 | 首选 | 备选 / 备注 |
 |---|---|---|
@@ -10,12 +12,12 @@
 | **语义改写 / 换背景材质** | `flux2-klein-image-edit-turbo` | 尺寸跟随输入图，`size` 不生效，输出约 1MP |
 | 抠图 | `utility-birefnet-remove-background` | promptless，走独立端点 |
 | 视频（最多能力） | `minimax-h3`（FL2VA） | 文生 / 首帧 / 首尾帧 |
-| 视频（参考素材） | `minimax-h3-edit`（Ref2VA） | 6 图 + 3 视频 + 3 音频 |
-| 视频（要更大画面） | `minimax-h3-lift` / `-lift-edit` | 原生采样 → 确定性 latent lift，输出画布 ×1.5（默认 2016×1152） |
+| 视频（参考素材） | `minimax-h3-edit`（Ref2VA） | 多图 + 多视频 + 多音频 |
+| 视频（要更大画面） | `minimax-h3-lift` / `-lift-edit` | 原生采样 → 确定性 latent lift，输出画布 ×scale |
 | 视频（草稿 / 快周转） | `fasth3` | 8 步蒸馏档；`fasth3-edit` 是占位档（官方未蒸馏 Ref2VA） |
 
-**选型要诀**：要最大质量用 `minimax-h3` 系；`fasth3` 是**草稿档**（官方口径 8 步最优、改步数掉质量，
-且实测高频段整体过量，**不是 49/50 步的无损替代**）；要分辨率走 **lift**，不是直接拉 `size`。
+**选型要诀**：要最大质量用 `minimax-h3` 系；`fasth3` 是**草稿档** —— 官方口径 8 步最优、改步数掉质量，
+**不是 49/50 步的无损替代**；要分辨率走 **lift**，不是直接拉 `size`。
 
 ## 2. REST 端点
 
@@ -35,15 +37,16 @@
 | `GET /roundabout/admin/queue/workflow/{prompt_id}` | 取提交图快照（队列 → history → 任务快照） |
 | `GET /roundabout/view` | 可视化页面（浏览 input/output + 实时进度） |
 
-管理端点（`/roundabout/admin/*`，工作流上传/删除、`models.yaml` 读写与结构化编辑）见 `API.md §5.7`。
+管理端点（`/roundabout/admin/*`，工作流上传/删除、`models.yaml` 读写与结构化编辑）见仓库 `API.md`。
 
-## 3. MCP（12 个工具，默认开启）
+## 3. MCP 工具（默认开启）
 
 `generate_image` · `edit_image` · `remove_background` · `generate_video` ·
 `list_models` · `get_task` · `cancel_task` · `queue_status` · `get_workflow` ·
-`reload` · `health` · `get_view_url`
+`reload` · `health` · `get_view_url` · `get_skills`
 
-传输 `streamable-http`，端点 `/mcp`（与 ComfyUI 同端口）。与 REST 完全互通。
+传输 `streamable-http`，端点 `/mcp`（与 ComfyUI 同端口），与 REST 完全互通。
+实际工具数以 `tools/list` 为准。
 
 > ⛔ **MCP 形参是逐个手写的，与 REST 的 pydantic 模型没有任何同步机制**；未声明的字段被
 > `extra="ignore"` **静默丢弃**（不报错）。所以「文档里有、传了却没生效」先怀疑这里。
@@ -55,9 +58,9 @@
 | 参数 | 说明 |
 |---|---|
 | `model` | 默认 `z-image-turbo`（`DEFAULT_MODEL` 可覆盖） |
-| `size` | 视频：`<tier>p-<ratio>` 或 `<ratio>@<tier>`，tier ∈ {`480p`,`576p`,`720p`,`768p`,`1080p`,`1440p`}，ratio ∈ {`1:1`,`3:4`,`4:3`,`16:9`,`9:16`}；或直接 `WxH`。**1440p 在 8 GiB 上直接生跑不动，要更大画面走 lift** |
-| `duration` | 秒，网关允许 1–15。⚠️ 本地权重训练区间是 **124–362 帧 ≈ 5–15 s**，`d≤4` 落在分布外 —— **别拿 d≤4 的产物下画质结论**（快速跑通用可以） |
-| `attention` | `sparse`（默认，块稀疏加速，更快更省显存）/ `dense`（关闭稀疏换致密画质，更慢更吃显存）。**只给 base 四支**（`minimax-h3` / `-edit` / `-lift` / `-lift-edit`）；FastH3 两支恒定稀疏，传了报 400 |
+| `size` | 视频：`<tier>p-<ratio>` 或 `<ratio>@<tier>`，tier ∈ {`480p`,`576p`,`720p`,`768p`,`1080p`,`1440p`}，ratio ∈ {`1:1`,`3:4`,`4:3`,`16:9`,`9:16`}；或直接 `WxH`。**1440p 在 8 GiB 档直接生跑不动，要更大画面走 lift** |
+| `duration` | 秒，网关允许 1–15。⚠️ H3 系权重的训练区间是 **124–362 帧 ≈ 5–15 s**，`d≤4` 落在分布外 —— **别拿 d≤4 的产物下画质结论**（快速跑通用可以） |
+| `attention` | `sparse`（默认，块稀疏加速，更快更省显存）/ `dense`（关闭稀疏换致密画质，更慢更吃显存）。**只对 base 四支开放**（`minimax-h3` / `-edit` / `-lift` / `-lift-edit`）；FastH3 两支恒定稀疏，传了报 400 |
 | `reference_images` / `_videos` / `_audios` | 参考素材；按请求实际提供数量裁剪，未传的槽提交前从图里删掉 |
 | `background:"pending"` | 异步；立即返回 task，用 `get_task` / `GET /v1/videos/tasks/{id}` 轮询 |
 | `response_format` | `url`（默认）/ `path`（落盘绝对路径）/ `b64_json` |
@@ -75,7 +78,7 @@
 | `gateway/*.py` · `mcp_server.py` · `__init__.py` | **必须重启 ComfyUI** —— `/admin/reload` 不重载 Python |
 | `web/*.html` / `*.js` | 浏览器强刷 |
 
-常用环境变量（完整清单见 `API.md §2.3`）：
+常用环境变量（完整清单见仓库 `API.md`）：
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
@@ -88,10 +91,15 @@
 | `OPENAI_GATEWAY_API_KEYS` | 空 | 填了才启用鉴权（逗号分隔） |
 | `ROUNDABOUT_VRAM_GB` | 空 | 手动钉住显存档位（GiB）；不填则自动探测，探测不到就不覆盖工作流自带值 |
 
+**`MCP_STATELESS` 是启动期读的**：只改 `.env` 不重启不生效；判据是向 `/mcp` POST 一个 `initialize`，
+**响应头带 `mcp-session-id`** 就说明当前是有状态模式（无状态不建会话、不发这个头）。
+有状态模式下 ComfyUI 重启会让客户端复用旧 session id、所有调用回 `-32600 Session not found`
+且不自动重新握手 —— 那就改走 REST。
+
 **显存自适应（`vram_adaptive`）**：模型声明后，网关**启动时**探测显存，从 `defaults.vram_tiers`
-取「`min_gb` 不超过本机显存」的最大一档作为分块参数默认值。规则：档位值 < 模型 `defaults` < 请求参数。
-`min_gb: 0` 是兜底档（更小的卡不会「无档可匹配」，但 6 GiB 与 2 GiB 拿到的是**同一套**参数）；
->48 GiB 全部落到最高档（`chunks=1` 已等于不分块，行为正确，但不是显式设计）。
+取「`min_gb` 不超过实际显存」的最大一档作为分块参数默认值。规则：档位值 < 模型 `defaults` < 请求参数。
+`min_gb: 0` 是兜底档（更小的卡不会「无档可匹配」，但最低两档拿到的是**同一套**参数）；
+超过最高档也全部落到最高档。
 ⛔ **没有 OOM 回退机制** —— 分块仍 OOM 就 `unload_all_models()` → 直接 FAILURE，不降档不重试。
 
 ## 6. 重启命令
@@ -101,5 +109,6 @@
     --auto-launch --preview-method auto --cuda-malloc --use-ck-attention
 ```
 
-无 `--port` → 8188。找在跑的进程：`Get-CimInstance Win32_Process` 筛 `CommandLine -like '*main.py*'`。
-重启后回读 `GET /health` 的 `models` 数组验收（**只看总数会被「删 2 加 2」骗过**）。
+无 `--port` → 8188。找在跑的进程（Windows）：`Get-CimInstance Win32_Process` 筛
+`CommandLine -like '*main.py*'`。重启后回读 `GET /health` 的 `models` 数组验收
+（**只看总数会被「删 2 加 2」骗过**）。
