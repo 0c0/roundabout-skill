@@ -48,8 +48,9 @@
 传输 `streamable-http`，端点 `/mcp`（与 ComfyUI 同端口），与 REST 完全互通。
 实际工具数以 `tools/list` 为准。
 
-> ⛔ **MCP 形参是逐个手写的，与 REST 的 pydantic 模型没有任何同步机制**；未声明的字段被
-> `extra="ignore"` **静默丢弃**（不报错）。所以「文档里有、传了却没生效」先怀疑这里。
+> ⛔ **MCP 形参是逐个手写的，与 REST 的 pydantic 模型没有任何同步机制**；形参里没声明的字段
+> 到不了工具函数，**静默丢弃、不报错**。REST 侧 pydantic 是 `extra="allow"`，额外字段能收进请求体，
+> 但 `values` 只从显式字段表构造 ⇒ **它们同样进不了工作流**。所以「文档里有、传了却没生效」先怀疑这里。
 > 覆盖度由 `tests/test_mcp_param_coverage.py` 守护 —— 新增 REST 字段必须在 MCP 同步，否则测试红。
 > 反过来，MCP 没暴露的字段仍可走 REST 端点传（两条路径最终汇入同一个 pipeline）。
 
@@ -61,7 +62,7 @@
 | `size` | 视频：`<tier>p-<ratio>` 或 `<ratio>@<tier>`，tier ∈ {`480p`,`576p`,`720p`,`768p`,`1080p`,`1440p`}，ratio ∈ {`1:1`,`3:4`,`4:3`,`16:9`,`9:16`}；或直接 `WxH`。**1440p 在 8 GiB 档直接生跑不动，要更大画面走 lift** |
 | `duration` | 秒，网关允许 1–15。⚠️ H3 系权重的训练区间是 **124–362 帧 ≈ 5–15 s**，`d≤4` 落在分布外 —— **别拿 d≤4 的产物下画质结论**（快速跑通用可以） |
 | `attention` | `sparse`（默认，块稀疏加速，更快更省显存）/ `dense`（关闭稀疏换致密画质，更慢更吃显存）。**只对 base 四支开放**（`minimax-h3` / `-edit` / `-lift` / `-lift-edit`）；FastH3 两支恒定稀疏，传了报 400 |
-| `reference_images` / `_videos` / `_audios` | 参考素材；按请求实际提供数量裁剪，未传的槽提交前从图里删掉 |
+| `reference_images` / `_videos` / `_audios` | 参考素材；按请求实际提供数量裁剪，未传的槽提交前从图里删掉。**图像编辑档也吃 `reference_images`**（`flux2-klein-image-edit-turbo` 与 `qwen-image-2.1-edit` 各 4 槽）；`image` 只收单张，多图必须走这里，超上限报 400 |
 | `background:"pending"` | 异步；立即返回 task，用 `get_task` / `GET /v1/videos/tasks/{id}` 轮询 |
 | `response_format` | `url`（默认）/ `path`（落盘绝对路径）/ `b64_json` |
 | `filename_prefix` | 落盘前缀，可含 `/` 建子目录 |

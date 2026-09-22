@@ -80,6 +80,16 @@ if "nodes" in d and "last_node_id" in d:  # UI 格式 → registry.load 会直�
 3. **节点 id 含冒号**（`45:36`）照抄，yaml 里是字符串不影响。
 4. **参考槽不叫 `ref_image_N` 时**：视频模型的 `references` 段默认按 `ref_images.ref_image_{i}` 这套键名去校验聚合节点上的 input。若聚合节点收的是别的名字（典型：`MiniMaxH3ImageToVideo` 的首尾帧是**关键帧**槽 `first_frame` / `last_frame`，不是参考 token），用 `image_keys` 逐槽覆盖（`videos` / `audios` 同理有 `video_keys` / `audio_keys`），列表必须与节点列表等长，否则启动即报错。
 
+5. **参考不在同一条聚合节点上时用 `slots`（链式拓扑）**：上面的 `image_keys` 只管「参考全挂在同一个聚合节点」的模型（H3 系、Qwen autogrow）。若参考是**各自独立接线**的（Flux2 / Klein 的 `ReferenceLatent` 链：每张参考一条 `LoadImage → ImageScaleToTotalPixels → VAEEncode → ReferenceLatent`），则**没有聚合节点**——`aggregator` 可以省掉，删槽靠 `slots` 逐槽声明（与 `images` 等长）：
+   - `slots[i].nodes`：该槽独占的下游节点，删槽时一并删；
+   - `slots[i].clear`：删槽后要清空的 optional 输入键，形如 `节点id.输入键`。
+   链式拓扑能这么删，是因为 `ReferenceLatent.latent` 是 **optional** 的，留空即**直通**（conditioning 原样返回）⇒ 删掉某槽只需删它的独占节点 + 清空键，**整条链不用重接**。
+   ✅ 判据：剪到单槽后应与「原生单槽工作流」**逐像素一致**（Klein 实测 MAE=0.0000 / 0 差异像素）。只比节点数/连线证明不了这一点。
+
+6. **别把「binding 落点」的 loader 当垃圾槽剪掉**（`binding 落点节点受保护`）：剪枝按 `reference_images` 的数量砍槽，可**一个 loader 可能同时是某个 binding 的落点**（典型：Klein 的向后兼容单图入口 `image: 76.inputs.image`，而 `76` 又是 `images[0]`）。调用方只传 `image`、不传 `reference_images` 时，`images[0]` 看似「未提供」→ 被删 → 工作流悬空。
+   网关已按「**任何 binding 的落点节点都不参与剪枝**」处理（`pipeline._prune_unused_references` 里的 `protected` 集合，由 `spec.bindings` 的节点 id 算出），新增此类模型不用额外声明。
+   ⚠️ 反过来也要注意：**纯文生图入口不要靠「给某个参考槽加 binding」来实现** —— 槽一旦被 binding 保护就删不掉，调用方一个参考都不传时，模板里的占位图会被当成参考喂进去。要留纯文生图入口就另开一条无参考槽的工作流。
+
 > **H3 系的现成参考**：base 四支（`minimax-h3` / `-edit` / `-lift` / `-lift-edit`）是本仓库里接线最完整的一组 ——
 > `references` 全套槽位、`vram_adaptive` + `vram_tiers`、以及 `attention` 档位都接好了。
 > 新增同族档时照抄它。
@@ -159,12 +169,15 @@ curl -s -X POST http://127.0.0.1:8188/admin/reload    # 返回 reloaded:true 与
 改的是参考槽（`references` / 剪枝）时，零成本快照只能证明「接上了」，证明不了「模型真的用了它」。
 真跑一条（3s 短档），提交照 4.1 用 `background:"pending"` + 轮询：
 
+- **⛔ 比对之前先对齐两发的输入。** 「网关产物 ≡ 原生跑（`/prompt`）」这条判据（MAE=0）的前提是两次提交**除被测机制外逐字段同构** —— 最容易漏的是 **`prompt`**。模板里的 prompt 默认是空串，「忘了设 prompt」**不会报错、照常出图**，只会把 MAE 变成一个很像故障的数字（实测：网关 1 参考 vs 原生「剪枝 1 槽」MAE=7.6、99% 像素不同，根因就是原生那发在**空 prompt** 下跑的；把 prompt 补上后 MAE=0.0）。同类漏项还有 seed 与每一张参考图。**比对脚本里把这些写死，并把两发的输入回显出来核一眼**，别只在结尾看一个 MAE 数字。
+
 - **提交图**：产物 mp4 内嵌的 `prompt` tag 就是提交图，逐槽核聚合节点的 `ref_images.*` /
   `ref_videos.*` / `ref_audios.*`（MiniMax H3 系聚合节点 `136`；FastH3 在子图里，节点 id 带子图前缀）。**参考视频给两个槽**（`ref_video_N` + `ref_video_audio_N`）。
   **没装 ffprobe 时**用随包安装的 ffmpeg（`imageio_ffmpeg` 自带，在 `<ComfyUI python>` 的
   site-packages 下）：`ffmpeg -i` 读流信息（分辨率/时长/音轨）；`-f ffmetadata meta.txt` 导出全部 tags
   —— 但**它对 `\` 转义**，读回来要逐字符反转义再 `json.loads`，否则报 `Invalid \escape`。
 - **只给一种参考时核对剪枝**：单图、单视频、单音频各会剪到固定的节点数，`Load*` 节点须与传的通道一一对应。
+- **网关实交图可以事后抠**：`/history/<prompt_id>` 里 `entry["prompt"][2]` 就是网关提交的那张图，不用重跑就能与「原生同构图」做结构 diff。节点 id 集合的差**应当恰好等于你有意省掉的那些节点**（本仓库 Qwen edit 档恒定差 3 个：官方模板的 `ResolutionSelector` / `ComfySwitchNode` 及同类）——**差多少不重要，MAE=0 才重要**；反之若差里出现 `LoadImage` 或参考键，那才是剪枝真的接错了。
 - **视觉**：`ffmpeg -ss T -frames:v 1` 抽 3 帧肉眼过（别只看 HTTP 200）。**产物名形如
   `MiniMax_H3_00073_.mp4`——扩展名前有个下划线**，漏了 ffmpeg 直接报 no such file。
   保存前缀 `video/FastH3` 是「**子目录 + 文件名前缀**」两段：产物落在 `output/video/FastH3_00001_.mp4`，

@@ -36,6 +36,21 @@ export HF_ENDPOINT=https://hf-mirror.com       # Linux / macOS
 
 repo ID 与 repo 内路径完全一致，只换端点。`curl` 形式的下载命令里把 `$B` 设为端点变量即可。
 
+> **大文件优先走 ModelScope（Comfy-Org 系仓库两边都在）。** 对 Comfy-Org 官方仓库实测：
+> `hf-mirror` 在几 GB 级 `safetensors` 上**单连接吞吐会持续衰减、偶发超时**（分片并发也只把总量
+> 抬到个位数 MB/s 量级），而 ModelScope 同 repo 能稳定跑满带宽。URL 形态把域名与路径段换掉即可：
+>
+> ```bash
+> # HF 镜像：   $B/<repo>/resolve/main/<repo 内路径>
+> # ModelScope: https://modelscope.cn/models/<repo>/resolve/master/<repo 内路径>
+> ```
+>
+> ModelScope 支持 `Range` 请求，适合**分片下载 + 断点续传**（每片写独立的 `.partN`，齐了再顺序拼接，
+> 单次超时不用从头再来）。
+>
+> ⚠️ **别用「文件大小对了」判断下载完成**：不少下载器（含 `hf_transfer` 一类）会**预分配**到
+> 目标字节数，半成品也是完整大小。要么下完自己记一个校验标记，要么按分片字节数核对。
+
 ### 3. `hf download` 会保留仓库目录结构 —— 所以默认给 `curl`
 
 Comfy-Org 的仓库用 `split_files/` 前缀，**那不是 ComfyUI 的目录**：
@@ -90,6 +105,7 @@ hf download Comfy-Org/MiniMax-H3 diffusion_models/minimax_h3_fl2va_int8_convrot.
 
 - `qwen3vl_8b_fp8_scaled.safetensors` 被 Boogu 全系与 `flux2-klein-image-edit-turbo` **共用**，
   下一个文件够多个模型用。
+- ⚠️ **同名不同文件**：Qwen-Image 2.1 的文本编码器叫 `qwen3vl_8b_int8_convrot.safetensors`，与上面那个 `qwen3vl_8b_fp8_scaled.safetensors` **只是精度后缀不同、来自不同仓库**，别互相顶替（工作流按文件名引用，顶替了不一定报错）。同仓库还有一路 `qwen3.5_9b_qwen_image_2.1_pe_{t2i,i2i}.int8_convrot`「PE」编码器，内置工作流不用。
 - `ae.safetensors`（fp32 0.34 GB）与 `flux1_vae_bf16.safetensors`（bf16 0.17 GB）是**同一个
   FLUX.1 Autoencoder 的两种精度**，按文件名被不同工作流引用 —— 名字不同就必须都存在。
   只跑 `boogu-image-edit` 而没跑 `z-image` 时，可以把 bf16 那份复制一份改名成 `ae.safetensors` 用
