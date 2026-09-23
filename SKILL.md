@@ -30,7 +30,7 @@ REST（`/v1/*`）与 MCP **完全互通**，仅当手上没有 MCP 通道时才�
 
 | 你在做什么 | 读哪个 |
 |---|---|
-| **调用**：选哪支模型、传什么参数、异步任务、拿产物 | `references/usage.md` |
+| **调用**：选哪支模型、传什么参数、异步任务、拿产物、**把产出汇总给用户**（任务看板） | `references/usage.md` |
 | **接入**：把新工作流接进网关 / 摘掉某个档 | `references/add-model.md` |
 | **接入 / 排障**：权重下不下来、放哪个目录、报错 `Value not in list` | `references/weights.md` |
 | **改文档后**：核「文档说的和实现是否一致」 | `references/doc-audit.md` |

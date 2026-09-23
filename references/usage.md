@@ -37,7 +37,8 @@
 | `GET /roundabout/admin/queue/workflow/{prompt_id}` | 取提交图快照（队列 → history → 任务快照） |
 | `GET /roundabout/admin/weights` | 权重体检：内置工作流当前缺哪些权重 + 每条的下载命令 |
 | `GET /roundabout/admin/tool-info` | **调用结构自描述**：逐模型「每个字段是否生效 / 区间 / 枚举 / 默认值」+ 参考槽数量 + 全局限制。加 `?view=compact` 取裁剪版、`&model=<名>` 限定单模型 |
-| `GET /roundabout/view` | 可视化页面（浏览 input/output + 实时进度） |
+| `GET /roundabout/view` | 可视化页面（浏览 input/output + 实时进度 + 任务看板） |
+| `GET\|POST\|DELETE /roundabout/view/board[...]` | 任务看板：当前看板 / 钉入 / 删单条 / 清空归档 / 历史列表 / 归档详情 / 载回。完整七条见仓库 `API.md` §7.1 |
 
 管理端点（`/roundabout/admin/*`，工作流上传/删除、`models.yaml` 读写与结构化编辑）见仓库 `API.md`。
 
@@ -45,7 +46,8 @@
 
 `get_tool_info` · `generate_image` · `edit_image` · `remove_background` · `generate_video` ·
 `list_models` · `get_task` · `cancel_task` · `queue_status` · `get_workflow` ·
-`reload` · `health` · `get_view_url` · `get_skills` · `check_weights`
+`reload` · `health` · `get_view_url` · `get_skills` · `check_weights` ·
+`pin_view_item` · `clear_view_board` · `get_view_board_history`
 
 传输 `streamable-http`，端点 `/mcp`（与 ComfyUI 同端口），与 REST 完全互通。
 实际工具数以 `tools/list` 为准。
@@ -67,6 +69,26 @@
 > ③ `README.md` 的 MCP 工具清单 + `API.md` 的架构图计数 / §7 标题 / 每行工具表 —— 同测试的
 >    「文档里的工具清单不漂移」区块，**新增工具忘改文档、或文档写了不存在的工具都会直接红**；
 > ④ **本文件的工具清单，只有这一处靠人记。**
+
+### 3.1 任务看板（产出多的时候，别一个个拉文件）
+
+页面顶部有一块**无限画布**。产出超过一两件时，**钉到看板上**比逐个把文件地址给用户清楚得多 ——
+按语义排布好，用户一眼看全，也方便他就着这张图做总结。
+
+- `pin_view_item`：钉一张卡。产物来源 `url` / `path` / `task_id` **三选一**（优先级依次降低）。
+  **给 `x`/`y` 就是排布**——分镜按顺序横排、A/B 摆成两列、按角色分区，都靠坐标表达；
+  不给则按网格自动找空位（所以「先钉主体、再补说明」不需要算坐标）。
+  没有产物也能钉 —— 传 `note` 并给 `kind=text`，用来写「这轮做到哪了」。
+- `clear_view_board`：**换任务或交付完就清空**，别把上一轮的卡片留在旁边造成混淆。
+  清空**即归档**（`label` 命名，如「第 1 轮 · 分镜草图」），不会丢。
+- `get_view_board_history`：回看某轮钉过什么；给用户做总结时用它还原「当时都出了哪些东西」。
+
+> **要不要把页面地址给用户，由你自己判断**（`get_view_url`）：用户在等结果、这一轮钉了很多张、
+> 或他明显没在看页面时，主动给（或直接替他打开）；他正盯着页面、或只是补一张图，就不必打扰 ——
+> **别变成每生成一次就复读一遍地址的噪音**。
+
+看板容量 60 张、历史保留 20 份；产物落在 `input`/`output` 之外时只能看到路径、点不开，
+`pin_view_item` 会回一条 `warning` 明确告诉你（**别当成钉成功了**）。
 
 ## 4. 关键请求参数
 
