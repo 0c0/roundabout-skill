@@ -36,24 +36,37 @@
 | `GET /roundabout/admin/queue` | 队列监控合并视图（每条含 seed） |
 | `GET /roundabout/admin/queue/workflow/{prompt_id}` | 取提交图快照（队列 → history → 任务快照） |
 | `GET /roundabout/admin/weights` | 权重体检：内置工作流当前缺哪些权重 + 每条的下载命令 |
+| `GET /roundabout/admin/tool-info` | **调用结构自描述**：逐模型「每个字段是否生效 / 区间 / 枚举 / 默认值」+ 参考槽数量 + 全局限制。加 `?view=compact` 取裁剪版、`&model=<名>` 限定单模型 |
 | `GET /roundabout/view` | 可视化页面（浏览 input/output + 实时进度） |
 
 管理端点（`/roundabout/admin/*`，工作流上传/删除、`models.yaml` 读写与结构化编辑）见仓库 `API.md`。
 
 ## 3. MCP 工具（默认开启）
 
-`generate_image` · `edit_image` · `remove_background` · `generate_video` ·
+`get_tool_info` · `generate_image` · `edit_image` · `remove_background` · `generate_video` ·
 `list_models` · `get_task` · `cancel_task` · `queue_status` · `get_workflow` ·
 `reload` · `health` · `get_view_url` · `get_skills` · `check_weights`
 
 传输 `streamable-http`，端点 `/mcp`（与 ComfyUI 同端口），与 REST 完全互通。
 实际工具数以 `tools/list` 为准。
 
+⚠️ **工具 `description` 只保留一句话定位**（2026-09-23 起）。参数细节 —— 逐模型生效性、区间、
+枚举、默认值、参考槽数量、尺寸档位 —— **一律查 `get_tool_info`**（或 REST
+`GET /roundabout/admin/tool-info`）。两份都由 `gateway/toolinfo.py` 从**运行期状态**推导，
+不写散文：模型加绑定 / 改字段约束 / 换参考槽拓扑都会自动反映，因此不会像描述那样漂移
+（历史教训：MCP 的 `edit_image` 描述长期挂着「编辑模型可以不传 image」这句错口径）。
+
 > ⛔ **MCP 形参是逐个手写的，与 REST 的 pydantic 模型没有任何同步机制**；形参里没声明的字段
 > 到不了工具函数，**静默丢弃、不报错**。REST 侧 pydantic 是 `extra="allow"`，额外字段能收进请求体，
 > 但 `values` 只从显式字段表构造 ⇒ **它们同样进不了工作流**。所以「文档里有、传了却没生效」先怀疑这里。
 > 覆盖度由 `tests/test_mcp_param_coverage.py` 守护 —— 新增 REST 字段必须在 MCP 同步，否则测试红。
 > 反过来，MCP 没暴露的字段仍可走 REST 端点传（两条路径最终汇入同一个 pipeline）。
+> 增删 MCP 工具要同步 **四处**：
+> ① `tests/test_mcp_default_on.py` 的 `tools/list` 计数断言（自守）；
+> ② `toolinfo._endpoints()['mcp']`，与 `@mcp.tool` 注册集做 AST 比对（`tests/test_toolinfo.py`）；
+> ③ `README.md` 的 MCP 工具清单 + `API.md` 的架构图计数 / §7 标题 / 每行工具表 —— 同测试的
+>    「文档里的工具清单不漂移」区块，**新增工具忘改文档、或文档写了不存在的工具都会直接红**；
+> ④ **本文件的工具清单，只有这一处靠人记。**
 
 ## 4. 关键请求参数
 
@@ -63,7 +76,7 @@
 | `size` | 视频：`<tier>p-<ratio>` 或 `<ratio>@<tier>`，tier ∈ {`480p`,`576p`,`720p`,`768p`,`1080p`,`1440p`}，ratio ∈ {`1:1`,`3:4`,`4:3`,`16:9`,`9:16`}；或直接 `WxH`。**1440p 在 8 GiB 档直接生跑不动，要更大画面走 lift** |
 | `duration` | 秒，网关允许 1–15。⚠️ H3 系权重的训练区间是 **124–362 帧 ≈ 5–15 s**，`d≤4` 落在分布外 —— **别拿 d≤4 的产物下画质结论**（快速跑通用可以） |
 | `attention` | `sparse`（默认，块稀疏加速，更快更省显存）/ `dense`（关闭稀疏换致密画质，更慢更吃显存）。**只对 base 四支开放**（`minimax-h3` / `-edit` / `-lift` / `-lift-edit`）；FastH3 两支恒定稀疏，传了报 400 |
-| `reference_images` / `_videos` / `_audios` | 参考素材；按请求实际提供数量裁剪，未传的槽提交前从图里删掉。**图像编辑档也吃 `reference_images`**（`flux2-klein-image-edit-turbo` 与 `qwen-image-2.1-edit` 各 4 槽）；`image` 只收单张，多图必须走这里，超上限报 400 |
+| `reference_images` / `_videos` / `_audios` | 参考素材；按请求实际提供数量裁剪，未传的槽提交前从图里删掉。**图像档也吃 `reference_images`**（`qwen-image-2.1` 6 槽 / `flux2-klein-image-edit-turbo` 4 槽）；`image` 只收单张，多图必须走这里，超上限报 400。`qwen-image-2.1` 是**文生与多图编辑同一支**：一张参考都不传即纯文生（这时 `size` 才生效），1–6 张则输出尺寸跟随第 1 张参考图 |
 | `background:"pending"` | 异步；立即返回 task，用 `get_task` / `GET /v1/videos/tasks/{id}` 轮询 |
 | `response_format` | `url`（默认）/ `path`（落盘绝对路径）/ `b64_json` |
 | `filename_prefix` | 落盘前缀，可含 `/` 建子目录 |
