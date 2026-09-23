@@ -72,6 +72,9 @@ REST（`/v1/*`）与 MCP **完全互通**，仅当手上没有 MCP 通道时才�
 - 交付后**目视产物**，不要只看 HTTP 200 / 任务 completed。
 - **不要把实测耗时 / 加速比写进文档**：换机器就不成立，写了就是待维护的错数（见 `references/doc-audit.md`）。
 - 改了仓库（模型、参数、拓扑、文档）→ 跑 `tests/run_tests.py`，清点见 `references/add-model.md` §5。
+- **动了功能（新端点 / 新工具 / 新模型或工作流）→ 在同一批提交里升 minor 版本号**：
+  改 `pyproject.toml` 的 `[project] version`，并同步 `API.md` 顶部的「当前版本」。
+  运行期 `VERSION` 由 pyproject 派生 ⇒ **改完要重启，`reload` 不算**。落点见 `references/add-model.md` §5。
 
 ## 边界
 

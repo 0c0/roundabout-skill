@@ -20,6 +20,7 @@ Roundabout 的介绍类载体有多份（`README.md` / `API.md` / `WORKFLOWS.md`
 | REST 字段与枚举 | `gateway/schemas.py` |
 | **某次运行实际跑了什么** | ① `/history` 的提交图 ② 日志的 `N/M` 行 ③ **产物内嵌的提交图**（`.png` 的 `prompt` tag / `.mp4` 的 metadata） |
 | 计数类（几支模型 / 几个工作流 / 几个权重 / 几个工具） | **一律脚本枚举**，不要靠记忆或文档里的旧数 |
+| 版本号 | `pyproject.toml` 的 `[project] version`（`API.md` 顶部那份只是它的副本） |
 
 ## 六个高发错类
 

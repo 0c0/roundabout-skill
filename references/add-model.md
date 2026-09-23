@@ -224,6 +224,12 @@ curl -s -X POST http://127.0.0.1:8188/admin/reload    # 返回 reloaded:true 与
   与 REST 的 pydantic 模型是两条独立路径，改完必须跑 `tests/test_mcp_param_coverage.py`。
   增删**工具**另有闸：`tests/test_mcp_default_on.py` 的 `tools/list` 计数。
 
+- `pyproject.toml` 的 `[project] version` + `API.md` 顶部的「当前版本」：**加了功能（新端点 /
+  新 MCP 工具 / 新模型或工作流）就在同一批提交里升 minor**（1.2.0 → 1.3.0），纯修复升 patch。
+  运行期 `mcp_server.VERSION` 由 `pyproject.toml` 现读派生（`health` 里的版本跟它走），所以改完
+  **要重启**、reload 不重读包元数据；守护测试 `tests/test_version.py` 同时拦「两处不一致」和
+  「谁把版本号硬编码回 `.py`」。
+
 改完跑 `tests/run_tests.py`。
 
 ---
