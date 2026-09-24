@@ -147,10 +147,11 @@ skill 内容版本，与各 skill 仓库 SKILL.md frontmatter 的 `skill_version
 | 参数 | 说明 |
 |---|---|
 | `model` | 默认 `z-image-turbo`（`DEFAULT_MODEL` 可覆盖） |
-| `size` | 视频：`<tier>p-<ratio>` 或 `<ratio>@<tier>`，tier ∈ {`480p`,`576p`,`720p`,`768p`,`1080p`,`1440p`}，ratio ∈ {`1:1`,`3:4`,`4:3`,`16:9`,`9:16`}；或直接 `WxH`。**1440p 在 8 GiB 档直接生跑不动，要更大画面走 lift** |
+| `size` | 视频：`<tier>p-<ratio>` 或 `<ratio>@<tier>`，tier ∈ {`480p`,`576p`,`720p`,`768p`,`1080p`,`1440p`}，ratio ∈ {`1:1`,`3:4`,`4:3`,`16:9`,`9:16`}；或直接 `WxH`。**所有视频尺寸对齐 32 的倍数**（latent 偶数 × 16 下采样；`720p` 实际 736、`768p-16:9` = 1376×768，`WxH` 自动 round），实际输出看响应 `size` 回显。**默认画布 1344×768 是 7:4**，别当成 `768p-16:9`。**1440p 在 8 GiB 档直接生跑不动，要更大画面走 lift**（`output_size` 给期望输出、网关反推倍率；仅 lift 两支） |
 | `duration` | 秒，网关允许 1–15。⚠️ H3 系权重的训练区间是 **124–362 帧 ≈ 5–15 s**，`d≤4` 落在分布外 —— **别拿 d≤4 的产物下画质结论**（快速跑通用可以） |
 | `attention` | `sparse`（默认，块稀疏加速，更快更省显存）/ `dense`（关闭稀疏换致密画质，更慢更吃显存）。**只对 base 四支开放**（`minimax-h3` / `-edit` / `-lift` / `-lift-edit`）；FastH3 两支恒定稀疏，传了报 400 |
-| `reference_images` / `_videos` / `_audios` | 参考素材；按请求实际提供数量裁剪，未传的槽提交前从图里删掉。**图像档也吃 `reference_images`**（`qwen-image-2.1` 6 槽 / `flux2-klein-image-edit-turbo` 4 槽）；`image` 只收单张，多图必须走这里，超上限报 400。`qwen-image-2.1` 是**文生与多图编辑同一支**：一张参考都不传即纯文生（这时 `size` 才生效），1–6 张则输出尺寸跟随第 1 张参考图 |
+| `first_frame` / `last_frame` | **首尾帧**（仅 fl2va 三支：`minimax-h3` / `-lift` / `fasth3`）：帧会实际成为输出的第一/最后一帧，按画布 size cover 裁剪（等比铺满 + 居中裁，不变形）；单图也可用 `first_frame` 只给首帧。**与 `reference_images` 互斥**，传错方向 400 + 指路 |
+| `reference_images` / `_videos` / `_audios` | 参考素材（**ref2va：edit 三支** + 图像档）；按请求实际提供数量裁剪，未传的槽提交前从图里删掉。**图像档也吃 `reference_images`**（`qwen-image-2.1` 6 槽 / `flux2-klein-image-edit-turbo` 4 槽）；`image` 只收单张，多图必须走这里，超上限报 400。`qwen-image-2.1` 是**文生与多图编辑同一支**：一张参考都不传即纯文生（这时 `size` 才生效），1–6 张则输出尺寸跟随第 1 张参考图。edit 档输出尺寸由 `size` 决定、与参考图无关 |
 | `background:"pending"` | 异步；立即返回 task，用 `get_task` / `GET /v1/videos/tasks/{id}` 轮询 |
 | `response_format` | `url`（默认）/ `path`（落盘绝对路径）/ `b64_json` |
 | `filename_prefix` | 落盘前缀，可含 `/` 建子目录 |
