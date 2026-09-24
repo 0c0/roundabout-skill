@@ -54,6 +54,17 @@
 传输 `streamable-http`，端点 `/mcp`（与 ComfyUI 同端口），与 REST 完全互通。
 实际工具数以 `tools/list` 为准。
 
+**skill 版本感知（2026-09-24 起）**：`get_skills` 每个条目带 `skill_version`——服务器期望的
+skill 内容版本，与各 skill 仓库 SKILL.md frontmatter 的 `skill_version` 同步 bump。
+本地已装副本 frontmatter 里的版本**低于**该值 ⇒ 副本过期，按 `install_url` 重装拿新版
+（server 侧调用面细节永远以 `get_tool_info` 运行期推导为准，不存在过期问题）。
+
+**错误形态（2026-09-24 起）**：「目标不存在」一族（`task_not_found` / `prompt_not_in_queue` /
+`archive_not_found`，含钉卡时给未知 `task_id`）**不抛工具异常**，统一回
+`{ok:false, error, code, status:404}` —— 按同一结构解析即可。参数非法与上游/内部错误照常抛
+（那些是 bug，不伪装成业务失败）。同步生成回执也带 `task_id`（REST `ImageResponse`/`VideoResponse`
+新字段），交给 `pin_view_item` 钉卡或 `get_task` 查询都行。
+
 ⚠️ **工具 `description` 只保留一句话定位**（2026-09-23 起）。参数细节 —— 逐模型生效性、区间、
 枚举、默认值、参考槽数量、尺寸档位 —— **一律查 `get_tool_info`**（或 REST
 `GET /roundabout/admin/tool-info`）。两份都由 `gateway/toolinfo.py` 从**运行期状态**推导，
@@ -79,7 +90,8 @@
 页面里的 **`看板` 标签页**（与 `Output` / `Input` 并列，标签上带卡片数）有一块**无限画布**。产出超过一两件时，**钉到看板上**比逐个把文件地址给用户清楚得多 ——
 按语义排布好，用户一眼看全，也方便他就着这张图做总结。
 
-- `pin_view_item`：钉一张卡。产物来源 `url` / `path` / `task_id` **三选一**（优先级依次降低）。
+- `pin_view_item`：钉一张卡。产物来源 `url` / `path` / `task_id` **三选一**（优先级依次降低）；
+  `task_id` 可以是异步任务的，也可以是**同步生成回执里回的那个**（图像同步链路同样留任务记录）。
   **给 `x`/`y` 就是排布**——分镜按顺序横排、A/B 摆成两列、按角色分区，都靠坐标表达；
   不给则按网格自动找空位（所以「先钉主体、再补说明」不需要算坐标）。
   没有产物也能钉 —— 传 `note` 并给 `kind=text`，用来写「这轮做到哪了」；
