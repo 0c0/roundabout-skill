@@ -230,7 +230,8 @@ curl -s -X POST http://127.0.0.1:8188/admin/reload    # 返回 reloaded:true 与
   **要重启**、reload 不重读包元数据；守护测试 `tests/test_version.py` 同时拦「两处不一致」和
   「谁把版本号硬编码回 `.py`」。
 
-改完跑 `tests/run_tests.py`。
+改完跑 `tests/run_tests.py`。**用 §「准备」里那个 `<ComfyUI python>`** —— 换成缺 aiohttp/yaml 的
+解释器（例如托管的裸 python）会拿到一批 `ModuleNotFoundError` 的**假失败**，白等一轮。
 
 ---
 
