@@ -48,7 +48,8 @@
 `get_tool_info` · `generate_image` · `edit_image` · `remove_background` · `generate_video` ·
 `list_models` · `get_task` · `cancel_task` · `queue_status` · `get_workflow` ·
 `reload` · `health` · `get_view_url` · `get_skills` · `check_weights` ·
-`pin_view_item` · `clear_view_board` · `get_view_board_history` · `load_view_board`
+`pin_view_item` · `clear_view_board` · `get_view_board` · `get_view_board_history` ·
+`load_view_board`
 
 传输 `streamable-http`，端点 `/mcp`（与 ComfyUI 同端口），与 REST 完全互通。
 实际工具数以 `tools/list` 为准。
@@ -65,7 +66,9 @@
 > 覆盖度由 `tests/test_mcp_param_coverage.py` 守护 —— 新增 REST 字段必须在 MCP 同步，否则测试红。
 > 反过来，MCP 没暴露的字段仍可走 REST 端点传（两条路径最终汇入同一个 pipeline）。
 > 增删 MCP 工具要同步 **四处**：
-> ① `tests/test_mcp_default_on.py` 的 `tools/list` 计数断言（自守）；
+> ① **测试里的工具计数是两处硬编码，都要数**：`tests/test_mcp_default_on.py` 的 `tools/list`
+>    计数断言、`tests/test_toolinfo.py` 的「MCP 工具数为 N」—— 只改一处会漏
+>    （2026-09-24 加 `get_view_board` 时先漏了后者）；
 > ② `toolinfo._endpoints()['mcp']`，与 `@mcp.tool` 注册集做 AST 比对（`tests/test_toolinfo.py`）；
 > ③ `README.md` 的 MCP 工具清单 + `API.md` 的架构图计数 / §7 标题 / 每行工具表 —— 同测试的
 >    「文档里的工具清单不漂移」区块，**新增工具忘改文档、或文档写了不存在的工具都会直接红**；
@@ -84,6 +87,9 @@
   （「成品都在这几个目录里」也值得钉一张）；
   `path`（绝对路径）指向这两个目录**之外**、本机真实存在的目录或文件时落成**外部卡**，
   用户点它会在系统文件管理器里打开 / 定位 —— 页面上看不到内容，见本节末尾。
+- `get_view_board`：读**当前看板**上已有哪些卡片（标题 / 类别 / 坐标 / 说明）与归档份数。
+  **要接着往上钉之前先看一眼** —— 免得钉重、或与已有卡片叠在一起；用户问「板上有什么」时也用它。
+  看的是当前板；要回看某一轮用 `get_view_board_history`。
 - `clear_view_board`：**换任务或交付完就清空**，别把上一轮的卡片留在旁边造成混淆。
   清空**即归档**（`label` 命名，如「第 1 轮 · 分镜草图」），不会丢。
 - `get_view_board_history`：回看某轮钉过什么；给用户做总结时用它还原「当时都出了哪些东西」。
