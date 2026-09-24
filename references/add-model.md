@@ -223,6 +223,9 @@ curl -s -X POST http://127.0.0.1:8188/admin/reload    # 返回 reloaded:true 与
 - `mcp_server.py`：**仅在新增了「请求字段」或工具时才需要动**（单纯加模型不用改）。MCP 形参逐个手写、
   与 REST 的 pydantic 模型是两条独立路径，改完必须跑 `tests/test_mcp_param_coverage.py`。
   增删**工具**另有闸：`tests/test_mcp_default_on.py` 的 `tools/list` 计数。
+  ⛔ **加了非标量形参（数组 / 对象 / 带 `| None` 的联合类型）要单独验一次 schema**：形参写得对、
+  函数能跑通，不代表框架生成得出可用的 JSON Schema。最快的验法是 stdio 起一个独立实例（不碰真机、
+  不占用 MCP 端口）打一发 `tools/list`，看那个参数的 `inputSchema` 长什么样。
 
 - `pyproject.toml` 的 `[project] version` + `API.md` 顶部的「当前版本」：**加了功能（新端点 /
   新 MCP 工具 / 新模型或工作流）就在同一批提交里升 minor**（1.2.0 → 1.3.0），纯修复升 patch。
