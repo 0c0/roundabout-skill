@@ -48,7 +48,7 @@
 `get_tool_info` · `generate_image` · `edit_image` · `remove_background` · `generate_video` ·
 `list_models` · `get_task` · `cancel_task` · `queue_status` · `get_workflow` ·
 `reload` · `health` · `get_view_url` · `get_skills` · `check_weights` ·
-`pin_view_item` · `clear_view_board` · `get_view_board_history`
+`pin_view_item` · `clear_view_board` · `get_view_board_history` · `load_view_board`
 
 传输 `streamable-http`，端点 `/mcp`（与 ComfyUI 同端口），与 REST 完全互通。
 实际工具数以 `tools/list` 为准。
@@ -87,6 +87,11 @@
 - `clear_view_board`：**换任务或交付完就清空**，别把上一轮的卡片留在旁边造成混淆。
   清空**即归档**（`label` 命名，如「第 1 轮 · 分镜草图」），不会丢。
 - `get_view_board_history`：回看某轮钉过什么；给用户做总结时用它还原「当时都出了哪些东西」。
+- `load_view_board`：把某份归档**载回**当前看板（**替换**语义）—— **新会话要续接上一轮任务时用**：
+  先 `get_view_board_history` 拿到 `archive_id`，再载回，上一轮钉过的卡片就回到画布上。
+  当前看板非空会**先自动归档**它（回 `auto_archived`），不会静默丢内容。
+  用户自己在页面上只能**只读回看**归档（他能做的顶多是回看时点「用这份替换当前看板」），
+  所以**别指望用户把板恢复回来** —— 需要续接就由你载。
 
 > **要不要把页面地址给用户，由你自己判断**（`get_view_url`）：用户在等结果、这一轮钉了很多张、
 > 或他明显没在看页面时，主动给（或直接替他打开）；他正盯着页面、或只是补一张图，就不必打扰 ——
@@ -99,6 +104,8 @@
 
 > 卡片点了什么反应，取决于**产物在哪**：图片/视频/音频弹层预览，目录卡跳进该目录，
 > 外部卡拉起系统文件管理器（先确认，仅本机访问有效），纯文本卡只给一条提示。
+> **回看历史归档时整块看板是只读的**（卡片 `×` 与「清空并归档」都不出现），
+> 想改就先把某份用 `load_view_board` 载回当前看板。
 
 ## 4. 关键请求参数
 
