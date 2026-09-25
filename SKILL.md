@@ -2,7 +2,7 @@
 name: roundabout
 description: ComfyUI-Roundabout 网关（ComfyUI 自定义节点）的使用手册 —— 用 MCP 工具出图出视频、选模型与传参、异步任务与产物、注册与摘除工作流模型、下载权重、排障，以及核对这套文档与实现的说法是否一致。Use when the user 说「roundabout」「走网关生成」「generate_image」「generate_video」「MCP 生图/生视频」「/v1/images/generations」「/v1/videos/generations」「注册工作流」「models.yaml 加一个模型」「把这个档下掉」「权重下不下来」「文件名对不上」，或需要驱动装了本节点的 ComfyUI 出图出视频。
 agent_created: true
-skill_version: 1.4.0
+skill_version: 1.5.0
 ---
 
 # Roundabout 网关
