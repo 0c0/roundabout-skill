@@ -227,11 +227,14 @@ curl -s -X POST http://127.0.0.1:8188/admin/reload    # 返回 reloaded:true 与
   函数能跑通，不代表框架生成得出可用的 JSON Schema。最快的验法是 stdio 起一个独立实例（不碰真机、
   不占用 MCP 端口）打一发 `tools/list`，看那个参数的 `inputSchema` 长什么样。
 
-- `pyproject.toml` 的 `[project] version` + `API.md` 顶部的「当前版本」：**加了功能（新端点 /
-  新 MCP 工具 / 新模型或工作流）就在同一批提交里升 minor**（1.2.0 → 1.3.0），纯修复升 patch。
-  运行期 `mcp_server.VERSION` 由 `pyproject.toml` 现读派生（`health` 里的版本跟它走），所以改完
-  **要重启**、reload 不重读包元数据；守护测试 `tests/test_version.py` 同时拦「两处不一致」和
-  「谁把版本号硬编码回 `.py`」。
+- **版本号统一走 `tools/release.py`**：`<ComfyUI python> tools/release.py bump 1.28.0`
+  一条命令写 `pyproject.toml` + `API.md` 头部、重生成 `gateway/skills_manifest.json`
+  （skill 版本源 = 各 SKILL.md frontmatter，**改了 skill 文档内容后也要跑 gen-manifest**）、
+  跑全套测试，全绿才算成功。**加了功能（新端点 / 新 MCP 工具 / 新模型或工作流）升 minor**，
+  纯修复升 patch。运行期 `mcp_server.VERSION` 由 `pyproject.toml` 现读派生（`health` 里的版本
+  跟它走），所以改完**要重启**、reload 不重读包元数据；守护测试 `tests/test_version.py` 同时拦
+  「两处不一致」和「谁把版本号硬编码回 `.py`」；`tests/test_skill_version_sync.py` 拦 manifest
+  过期与手写版本号回潮。
 
 改完跑 `tests/run_tests.py`。**用 §「准备」里那个 `<ComfyUI python>`** —— 换成缺 aiohttp/yaml 的
 解释器（例如托管的裸 python）会拿到一批 `ModuleNotFoundError` 的**假失败**，白等一轮。

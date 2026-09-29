@@ -2,7 +2,7 @@
 name: roundabout
 description: ComfyUI-Roundabout 网关（ComfyUI 自定义节点）的使用手册 —— 用 MCP 工具出图出视频、选模型与传参、异步任务与产物、注册与摘除工作流模型、下载权重、排障，以及核对这套文档与实现的说法是否一致。Use when the user 说「roundabout」「走网关生成」「generate_image」「generate_video」「MCP 生图/生视频」「/v1/images/generations」「/v1/videos/generations」「注册工作流」「models.yaml 加一个模型」「把这个档下掉」「权重下不下来」「文件名对不上」，或需要驱动装了本节点的 ComfyUI 出图出视频。
 agent_created: true
-skill_version: 1.8.0
+skill_version: 1.9.0
 ---
 
 # Roundabout 网关
@@ -73,8 +73,10 @@ REST（`/v1/*`）与 MCP **完全互通**，仅当手上没有 MCP 通道时才�
 - 交付后**目视产物**，不要只看 HTTP 200 / 任务 completed。
 - **不要把实测耗时 / 加速比写进文档**：换机器就不成立，写了就是待维护的错数（见 `references/doc-audit.md`）。
 - 改了仓库（模型、参数、拓扑、文档）→ 跑 `tests/run_tests.py`，清点见 `references/add-model.md` §5。
-- **动了功能（新端点 / 新工具 / 新模型或工作流）→ 在同一批提交里升 minor 版本号**：
-  改 `pyproject.toml` 的 `[project] version`，并同步 `API.md` 顶部的「当前版本」。
+- **动了功能（新端点 / 新工具 / 新模型或工作流）→ 一条命令统一 bump**：
+  `<ComfyUI python> tools/release.py bump 1.28.0` —— 自动写 `pyproject.toml` + `API.md` 头部、
+  重生成 `gateway/skills_manifest.json`（skill 版本源 = 各 SKILL.md frontmatter）、跑全套测试，
+  全绿才算 bump 成功。只改了 skill 文档内容 → `tools/release.py gen-manifest` 即可。
   运行期 `VERSION` 由 pyproject 派生 ⇒ **改完要重启，`reload` 不算**。落点见 `references/add-model.md` §5。
 
 ## 边界

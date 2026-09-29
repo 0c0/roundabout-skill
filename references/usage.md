@@ -11,8 +11,8 @@
 | **改图内文字** | `boogu-image-edit-turbo` | `boogu-image-edit`（30 步） |
 | **语义改写 / 换背景材质** | `flux2-klein-image-edit-turbo` | 尺寸跟随输入图，`size` 不生效，输出约 1MP |
 | 抠图 | `utility-birefnet-remove-background` | promptless，走独立端点 |
-| 视频（最多能力） | `minimax-h3`（FL2VA） | 文生 / 首帧 / 首尾帧 |
-| 视频（参考素材） | `minimax-h3-edit`（Ref2VA） | 多图 + 多视频 + 多音频 |
+| 视频（统一入口） | `minimax-h3`（FL2VA） | 文生 / 首帧 / 首尾帧 / **参考图**；带 `reference_videos`/`reference_audios` **自动换档**到 `-edit`，不必手动选 |
+| 视频（音视频参考档） | `minimax-h3-edit`（Ref2VA） | 多视频 + 多音频 + 多图；通常由 `minimax-h3` 自动换档到达，直调等价 |
 | 视频（要更大画面） | `minimax-h3-lift` / `-lift-edit` | 原生采样 → 确定性 latent lift，输出画布 ×scale |
 | 视频（草稿 / 快周转） | `fasth3` | 8 步蒸馏档；`fasth3-edit` 是占位档（官方未蒸馏 Ref2VA） |
 
@@ -147,6 +147,7 @@ skill 内容版本，与各 skill 仓库 SKILL.md frontmatter 的 `skill_version
 | 参数 | 说明 |
 |---|---|
 | `model` | 默认 `z-image-turbo`（`DEFAULT_MODEL` 可覆盖） |
+| `seed` | 不传 / `-1` = 每次随机；正整数 = 固定复现。⚠️ **迭代编辑（如 `qwen-image-2.1` 带参考图连改多轮）每轮必须换新 seed**（不传即可）：同 seed + denoise=1.0 全图重绘时残差噪声**线性累加**，两三轮后画面「变脏」（09-28 flatSD 实测：干净底 2.25 → 连改两轮 34.3；同底换新 seed = 2.72 干净；降 denoise 反而更脏，此路不通）。只在要**复现某张已出图**时才传正整数 |
 | `size` | 视频：`<tier>p-<ratio>` 或 `<ratio>@<tier>`，tier ∈ {`480p`,`576p`,`720p`,`768p`,`1080p`,`1440p`}，ratio ∈ {`1:1`,`3:4`,`4:3`,`16:9`,`9:16`}；或直接 `WxH`。**所有视频尺寸对齐 32 的倍数**（latent 偶数 × 16 下采样；`720p` 实际 736、`768p-16:9` = 1376×768，`WxH` 自动 round），实际输出看响应 `size` 回显。**默认画布 1344×768 是 7:4**，别当成 `768p-16:9`。**1440p 在 8 GiB 档直接生跑不动，要更大画面走 lift**（`output_size` 给期望输出、网关反推倍率；仅 lift 两支） |
 | `duration` | 秒，网关允许 1–15。⚠️ H3 系权重的训练区间是 **124–362 帧 ≈ 5–15 s**，`d≤4` 落在分布外 —— **别拿 d≤4 的产物下画质结论**（快速跑通用可以） |
 | `attention` | `sparse`（默认，块稀疏加速，更快更省显存）/ `dense`（关闭稀疏换致密画质，更慢更吃显存）。**只对 base 四支开放**（`minimax-h3` / `-edit` / `-lift` / `-lift-edit`）；FastH3 两支恒定稀疏，传了报 400 |
