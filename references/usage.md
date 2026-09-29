@@ -10,7 +10,9 @@
 | 文生图（Boogu 系） | `boogu-image-turbo` | `boogu-image-base`（30 步）/ `boogu-image-base-4step` |
 | **改图内文字** | `boogu-image-edit-turbo` | `boogu-image-edit`（30 步） |
 | **语义改写 / 换背景材质** | `flux2-klein-image-edit-turbo` | 尺寸跟随输入图，`size` 不生效，输出约 1MP |
-| 抠图 | `utility-birefnet-remove-background` | promptless，走独立端点 |
+| **图像放大** | `process_image(action="upscale")` → SeedVR2 7B Int8 | `multiplier` 1-8 默认 4，输出 = 输入 × 倍率；8GiB 显存靠 offload 慢速可跑 |
+| 抠图（整图主体） | `process_image(action="remove_background")` → BiRefNet | promptless，输出透明 PNG |
+| 抠图（按语义选目标） | `process_image(action="segment")` → SAM3 | `prompt` = 目标描述（如 "the cat"），`threshold` 默认 0.5 |
 | 视频（统一入口） | `minimax-h3`（FL2VA） | 文生 / 首帧 / 首尾帧 / **参考图**；带 `reference_videos`/`reference_audios` **自动换档**到 `-edit`，不必手动选 |
 | 视频（音视频参考档） | `minimax-h3-edit`（Ref2VA） | 多视频 + 多音频 + 多图；通常由 `minimax-h3` 自动换档到达，直调等价 |
 | 视频（要更大画面） | `minimax-h3-lift` / `-lift-edit` | 原生采样 → 确定性 latent lift，输出画布 ×scale |
@@ -45,7 +47,7 @@
 
 ## 3. MCP 工具（默认开启）
 
-`get_tool_info` · `generate_image` · `edit_image` · `remove_background` · `generate_video` ·
+`get_tool_info` · `generate_image` · `edit_image` · `remove_background` · `process_image` · `generate_video` ·
 `list_models` · `get_task` · `cancel_task` · `queue_status` · `get_workflow` ·
 `reload` · `health` · `get_view_url` · `get_skills` · `check_weights` ·
 `view_board`
