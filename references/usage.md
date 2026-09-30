@@ -205,3 +205,9 @@ skill 内容版本，与各 skill 仓库 SKILL.md frontmatter 的 `skill_version
 无 `--port` → 8188。找在跑的进程（Windows）：`Get-CimInstance Win32_Process` 筛
 `CommandLine -like '*main.py*'`。重启后回读 `GET /health` 的 `models` 数组验收
 （**只看总数会被「删 2 加 2」骗过**）。
+
+⛔ **杀进程别只用 `terminate()`**：它在 Windows 上可能既不生效也不报错，旧进程继续占着 8188，
+新实例抢不到端口 —— 这时探到的「已就绪」是**旧代码**在应答，改了 `.py` 的验收会假通过
+（实测踩过：探测返回 `READY after 0 s`，而当时监听 8188 的是十几分钟前那个进程）。
+强制 `kill()` 停干净（连残留子进程一起清），启动后**复核「监听 8188 的 PID + 它的启动时间」**：
+**端口通 ≠ 新代码在跑**。
