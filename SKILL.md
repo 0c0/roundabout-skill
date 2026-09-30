@@ -2,7 +2,7 @@
 name: roundabout
 description: ComfyUI-Roundabout 网关（ComfyUI 自定义节点）的使用手册 —— 用 MCP 工具出图出视频、选模型与传参、异步任务与产物、注册与摘除工作流模型、下载权重、排障，以及核对这套文档与实现的说法是否一致。Use when the user 说「roundabout」「走网关生成」「generate_image」「generate_video」「MCP 生图/生视频」「/v1/images/generations」「/v1/videos/generations」「注册工作流」「models.yaml 加一个模型」「把这个档下掉」「权重下不下来」「文件名对不上」，或需要驱动装了本节点的 ComfyUI 出图出视频。
 agent_created: true
-skill_version: 1.11.0
+skill_version: 1.12.0
 ---
 
 # Roundabout 网关
@@ -63,6 +63,8 @@ REST（`/v1/*`）与 MCP **完全互通**，仅当手上没有 MCP 通道时才�
 3. **找不到落点时先看提交图**：MCP `get_workflow`，或产物内嵌的提交图（`.png` 的 `prompt` tag /
    `.mp4` metadata）。**判「某发实际跑了什么」只看三处**：`/history` 提交图、日志的 `N/M` 行、
    产物 metadata —— 别信文件名或 tag 里的标签，标签与实参可以对不上。
+   ⚑ 同步生成同样留了快照：把回执里的 `task_id` 交给 `get_workflow` 就能取回提交图
+   （比 `/history` 可靠，后者会被 ComfyUI 重启或清理抹掉）。
 
 **新工作流先在 ComfyUI 原生 `/prompt` 验通，再落 `models.yaml`** —— 顺序不能倒，
 理由与做法见 `references/add-model.md`。

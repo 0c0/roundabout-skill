@@ -36,7 +36,7 @@
 | `GET /health` | 网关 + ComfyUI 后端健康 |
 | `POST /admin/reload` | 热加载 `models.yaml` + `workflows/` |
 | `GET /roundabout/admin/queue` | 队列监控合并视图（每条含 seed） |
-| `GET /roundabout/admin/queue/workflow/{prompt_id}` | 取提交图快照（队列 → history → 任务快照） |
+| `GET /roundabout/admin/queue/workflow/{prompt_id}` | 取提交图快照（队列 → history → 任务快照）。传 `task_id`（同步回执里的 / 异步任务的 id）同样命中第三层，**不依赖 ComfyUI history** |
 | `GET /roundabout/admin/weights` | 权重体检：内置工作流当前缺哪些权重 + 每条的下载命令 |
 | `GET /roundabout/admin/tool-info` | **调用结构自描述**：逐模型「每个字段是否生效 / 区间 / 枚举 / 默认值」+ 参考槽数量 + 全局限制。加 `?view=compact` 取裁剪版、`&model=<名>` 限定单模型 |
 | `GET /roundabout/view` | 可视化页面（浏览 input/output + 实时进度 + 任务看板） |
