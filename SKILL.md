@@ -2,7 +2,7 @@
 name: roundabout
 description: ComfyUI-Roundabout 网关（ComfyUI 自定义节点）的使用手册 —— 用 MCP 工具出图出视频、选模型与传参、异步任务与产物、注册与摘除工作流模型、下载权重、排障，以及核对这套文档与实现的说法是否一致。Use when the user 说「roundabout」「走网关生成」「generate_image」「generate_video」「MCP 生图/生视频」「/v1/images/generations」「/v1/videos/generations」「注册工作流」「models.yaml 加一个模型」「把这个档下掉」「权重下不下来」「文件名对不上」，或需要驱动装了本节点的 ComfyUI 出图出视频。
 agent_created: true
-skill_version: 1.10.0
+skill_version: 1.11.0
 ---
 
 # Roundabout 网关
@@ -71,6 +71,7 @@ REST（`/v1/*`）与 MCP **完全互通**，仅当手上没有 MCP 通道时才�
 
 - 先 `list_models` 看当前实例实际注册了什么，别照文档里的名册硬写（**只看总数会被「删 2 加 2」骗过**）。
 - 交付后**目视产物**，不要只看 HTTP 200 / 任务 completed。
+- **核对回执里的 `size`**（实测值：视频由工作流内的尺寸探针自报、图像读产物字节头；同步与异步回执都带）—— 漏传 `size` 会**静默**落模型默认、编辑档的 `size` 本就不生效（输出跟随参考图），只有这个字段能当场看出画幅不对。
 - **不要把实测耗时 / 加速比写进文档**：换机器就不成立，写了就是待维护的错数（见 `references/doc-audit.md`）。
 - 改了仓库（模型、参数、拓扑、文档）→ 跑 `tests/run_tests.py`，清点见 `references/add-model.md` §5。
 - **动了功能（新端点 / 新工具 / 新模型或工作流）→ 一条命令统一 bump**：

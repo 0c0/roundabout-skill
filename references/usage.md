@@ -150,12 +150,12 @@ skill 内容版本，与各 skill 仓库 SKILL.md frontmatter 的 `skill_version
 |---|---|
 | `model` | 默认 `z-image-turbo`（`DEFAULT_MODEL` 可覆盖） |
 | `seed` | 不传 / `-1` = 每次随机；正整数 = 固定复现。⚠️ **迭代编辑（如 `qwen-image-2.1` 带参考图连改多轮）每轮必须换新 seed**（不传即可）：同 seed + denoise=1.0 全图重绘时残差噪声**线性累加**，两三轮后画面「变脏」（09-28 flatSD 实测：干净底 2.25 → 连改两轮 34.3；同底换新 seed = 2.72 干净；降 denoise 反而更脏，此路不通）。只在要**复现某张已出图**时才传正整数 |
-| `size` | 视频：`<tier>p-<ratio>` 或 `<ratio>@<tier>`，tier ∈ {`480p`,`576p`,`720p`,`768p`,`1080p`,`1440p`}，ratio ∈ {`1:1`,`3:4`,`4:3`,`16:9`,`9:16`}；或直接 `WxH`。**所有视频尺寸对齐 32 的倍数**（latent 偶数 × 16 下采样；`720p` 实际 736、`768p-16:9` = 1376×768，`WxH` 自动 round），实际输出看响应 `size` 回显。**默认画布 1344×768 是 7:4**，别当成 `768p-16:9`。**1440p 在 8 GiB 档直接生跑不动，要更大画面走 lift**（`output_size` 给期望输出、网关反推倍率；仅 lift 两支） |
+| `size` | 视频：`<tier>p-<ratio>` 或 `<ratio>@<tier>`，tier ∈ {`480p`,`576p`,`720p`,`768p`,`1080p`,`1440p`}，ratio ∈ {`1:1`,`3:4`,`4:3`,`16:9`,`9:16`}；或直接 `WxH`。**所有视频尺寸对齐 32 的倍数**（latent 偶数 × 16 下采样；`720p` 实际 736、`768p-16:9` = 1376×768，`WxH` 自动 round），实际输出看响应 `size` 回显（**实测值**：视频由工作流内的尺寸探针自报、图像读产物字节头 —— 同步与异步回执都带；漏传 `size` 就落模型默认，回执会把它照实报出来）。**默认画布 1344×768 是 7:4**，别当成 `768p-16:9`。**1440p 在 8 GiB 档直接生跑不动，要更大画面走 lift**（`output_size` 给期望输出、网关反推倍率；仅 lift 两支） |
 | `duration` | 秒，网关允许 1–15。⚠️ H3 系权重的训练区间是 **124–362 帧 ≈ 5–15 s**，`d≤4` 落在分布外 —— **别拿 d≤4 的产物下画质结论**（快速跑通用可以） |
 | `attention` | `sparse`（默认，块稀疏加速，更快更省显存）/ `dense`（关闭稀疏换致密画质，更慢更吃显存）。**只对 base 四支开放**（`minimax-h3` / `-edit` / `-lift` / `-lift-edit`）；FastH3 两支恒定稀疏，传了报 400 |
 | `first_frame` / `last_frame` | **首尾帧**（`minimax-h3` / `-lift` / `fasth3`）：帧会实际成为输出的第一/最后一帧，按画布 size cover 裁剪（等比铺满 + 居中裁，不变形）；单图也可用 `first_frame` 只给首帧。**可与 `reference_images` 同传**（v1.17 统一节点拓扑：帧槽=帧语义、参考槽=conditioning 语义）；无帧槽的模型传了 400 |
 | `reference_images` / `_videos` / `_audios` | 参考素材（H3 六支 + 图像档；**帧与参考图可同传**）。参考视频/音频=视频编辑 / 动作 / 运镜 / 音频复用，主口径走 Ref2VA 权重（`minimax-h3-edit` / `-lift-edit`）—— **槽位在 Ref2VA 系三支**（`minimax-h3-edit` / `-lift-edit` / `fasth3-edit`）；传给 `minimax-h3` / `-lift` 时网关**自动换档**到对应 -edit 执行（09-25 双实测 FL2VA 权重不迁移动作/音色，参考内容只有 Ref2VA 消费；换档后走 edit 槽位规则，帧与音视频参考不能同单）；fasth3 无路由传了 400；按请求实际提供数量裁剪，未传的槽提交前从图里删掉。**图像档也吃 `reference_images`**（`qwen-image-2.1` 6 槽 / `flux2-klein-image-edit-turbo` 4 槽）；`image` 只收单张，多图必须走这里，超上限报 400。`qwen-image-2.1` 是**文生与多图编辑同一支**：一张参考都不传即纯文生（这时 `size` 才生效），1–6 张则输出尺寸跟随第 1 张参考图。edit 档输出尺寸由 `size` 决定、与参考图无关 |
-| `background:"pending"` | 异步；立即返回 task，用 `get_task` / `GET /v1/videos/tasks/{id}` 轮询。**轮询到 `completed` 时回执顶层就有 `size`**（实际输出尺寸，与同步响应同位），不必再 ffprobe 产物 |
+| `background:"pending"` | 异步；立即返回 task，用 `get_task` / `GET /v1/videos/tasks/{id}` 轮询。**轮询到 `completed` 时回执顶层就有 `size`**（实际输出尺寸，与同步响应同位），不必再 ffprobe 产物；**同步回执同样带 `size`** —— 交付前核对它与预期一致 |
 | `response_format` | `url`（默认）/ `path`（落盘绝对路径）/ `b64_json` |
 | `filename_prefix` | 落盘前缀，可含 `/` 建子目录 |
 | `workflow_overrides` | **通用路径注入器**：`{"910.inputs.scale": 2.0}`。REST 与 MCP 都暴露，`set_path` 只要求「最后一跳命中已存在的键」，**与 `KNOWN_PARAMS` 白名单无关**。路径不存在会报 400（typo 会炸出来，不会静默无效） |
