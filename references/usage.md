@@ -154,14 +154,28 @@ skill 内容版本，与各 skill 仓库 SKILL.md frontmatter 的 `skill_version
 | `duration` | 秒，网关允许 1–15。⚠️ H3 系权重的训练区间是 **124–362 帧 ≈ 5–15 s**，`d≤4` 落在分布外 —— **别拿 d≤4 的产物下画质结论**（快速跑通用可以） |
 | `attention` | `sparse`（默认，块稀疏加速，更快更省显存）/ `dense`（关闭稀疏换致密画质，更慢更吃显存）。**只对 base 四支开放**（`minimax-h3` / `-edit` / `-lift` / `-lift-edit`）；FastH3 两支恒定稀疏，传了报 400 |
 | `first_frame` / `last_frame` | **首尾帧**（`minimax-h3` / `-lift` / `fasth3`）：帧会实际成为输出的第一/最后一帧，按画布 size cover 裁剪（等比铺满 + 居中裁，不变形）；单图也可用 `first_frame` 只给首帧。**可与 `reference_images` 同传**（v1.17 统一节点拓扑：帧槽=帧语义、参考槽=conditioning 语义）；无帧槽的模型传了 400 |
-| `reference_images` / `_videos` / `_audios` | 参考素材（H3 六支 + 图像档；**帧与参考图可同传**）。参考视频/音频=视频编辑 / 动作 / 运镜 / 音频复用，主口径走 Ref2VA 权重（`minimax-h3-edit` / `-lift-edit`）—— **槽位在 Ref2VA 系三支**（`minimax-h3-edit` / `-lift-edit` / `fasth3-edit`）；传给 `minimax-h3` / `-lift` 时网关**自动换档**到对应 -edit 执行（09-25 双实测 FL2VA 权重不迁移动作/音色，参考内容只有 Ref2VA 消费；换档后走 edit 槽位规则，帧与音视频参考不能同单）；fasth3 无路由传了 400；按请求实际提供数量裁剪，未传的槽提交前从图里删掉。**图像档也吃 `reference_images`**（`qwen-image-2.1` 6 槽 / `flux2-klein-image-edit-turbo` 4 槽）；`image` 只收单张，多图必须走这里，超上限报 400。`qwen-image-2.1` 是**文生与多图编辑同一支**：一张参考都不传即纯文生（这时 `size` 才生效），1–6 张则输出尺寸跟随第 1 张参考图。edit 档输出尺寸由 `size` 决定、与参考图无关 |
+| `reference_images` / `_videos` / `_audios` | 参考素材（H3 六支 + 图像档；**帧与参考图可同传**）。参考视频/音频=视频编辑 / 动作 / 运镜 / 音频复用，主口径走 Ref2VA 权重（`minimax-h3-edit` / `-lift-edit`）—— **槽位在 Ref2VA 系三支**（`minimax-h3-edit` / `-lift-edit` / `fasth3-edit`）；传给 `minimax-h3` / `-lift` 时网关**自动换档**到对应 -edit 执行（09-25 双实测 FL2VA 权重不迁移动作/音色，参考内容只有 Ref2VA 消费；换档后走 edit 槽位规则，帧与音视频参考不能同单）；fasth3 无路由传了 400；按请求实际提供数量裁剪，未传的槽提交前从图里删掉。**图像档也吃 `reference_images`**（`qwen-image-2.1` 6 槽 / `flux2-klein-image-edit-turbo` 4 槽）；`image` 只收单张，多图必须走这里，超上限报 400。`qwen-image-2.1` 是**文生与多图编辑同一支**：一张参考都不传即纯文生（这时 `size` 才生效），1–6 张则 **`size` 不生效、输出尺寸跟随第 1 张参考图**（要换画幅=预裁画布图，见下方专有口径） |
 | `background:"pending"` | 异步；立即返回 task，用 `get_task` / `GET /v1/videos/tasks/{id}` 轮询。**轮询到 `completed` 时回执顶层就有 `size`**（实际输出尺寸，与同步响应同位），不必再 ffprobe 产物；**同步回执同样带 `size`** —— 交付前核对它与预期一致 |
 | `response_format` | `url`（默认）/ `path`（落盘绝对路径）/ `b64_json` |
 | `filename_prefix` | 落盘前缀，可含 `/` 建子目录 |
+| `image` / 帧与参考素材 | **一律传绝对路径且先确认文件存在**：裸文件名会被当 base64 解码，落成 12 字节坏文件；不存在的路径按 base64 校验直接 400 |
 | `workflow_overrides` | **通用路径注入器**：`{"910.inputs.scale": 2.0}`。REST 与 MCP 都暴露，`set_path` 只要求「最后一跳命中已存在的键」，**与 `KNOWN_PARAMS` 白名单无关**。路径不存在会报 400（typo 会炸出来，不会静默无效） |
 
 **同步 vs 异步**：图片请求始终同步返回；视频建议 `background:"pending"` —— 同步路径下客户端容易
 先超时，而服务端**照跑到底**（真占 GPU 真落产物）。
+
+### 4.1 `qwen-image-2.1` 专有口径
+
+- **画幅参数**：只认 `size`（`"WxH"` 字符串）；顶层 `width`/`height` **不是可传参数**，传了**静默丢弃**落回默认 `1024×1024`（不报错不警告）。画布边长须为 **32 的倍数**，否则被悄悄改写。
+- **纯文生**：`size` 直传生效，可非方图，原生直出到 2K（2048×2048）。
+- **编辑（有参考图）**：`size` **不生效**，输出逐像素跟随 `image_1`（画布 640×960 就出 640×960；`use_custom_size` 按「有无参考素材」自动推导，请求侧无开关）。要换画幅 = **预裁画布图**到目标比例（边长取整 32 倍数）。⚠️ 09-30 勘误：旧文档写「edit 档输出尺寸由 size 决定、与参考图无关」**是错的**，以本条实测为准。
+- **强制画布**：`custom_size` 开启可覆盖画布，但取值必须贴近 `image_1` 缩放后的结果，否则**编辑内容偏移**（不报错、画面错位）。
+- **`resolution` 语义**（节点层参数，本网关 `fields` 未暴露）：**面积基准不是边长**——`1024` ≈ 1MP 总面积按参考图比例分给宽高；网关与官方模板起始值 `0` = 不缩放、只对齐 32 倍数。
+- **参考槽**：官方 10 槽（`image_1`–`image_10`，节点 Autogrow 技术上限更高），本网关限 **6 张**；超限 HTTP 400（`at most 6 image(s)`），是响的，可放心靠报错。
+- **`cfg` / `steps`**：仅 `generate_image` 暴露，`edit_image` 的 MCP schema 没有（tool-info `applies=true` ≠ 每个工具面都暴露）；本档默认 **25 步**（2026-09-24 起，40 步实测无优势）。
+- **`denoise`**：未暴露（bindings 无此项，模板 `KSampler.denoise` 硬编码 `1`）。
+- **节点名**：2.1 用 `TextEncodeQwenImage21`（`comfy_extras/nodes_qwen.py`）；`TextEncodeQwenImageEdit` / `…EditPlus` 是旧 Qwen-Image-Edit 的，别挂错。
+- **缓存**：同参数重复请求命中服务端缓存（≈1.0s 返回）⇒ 对比实验必须换 seed，判复现必须锁 seed。
 
 ## 5. 运维
 
