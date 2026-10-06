@@ -108,7 +108,6 @@ hf download Comfy-Org/MiniMax-H3 diffusion_models/minimax_h3_fl2va_int8_convrot.
 
 ## pruned 与完整版不能互换
 
-- `fasth3` / `fasth3-edit` 用 `fastvideo_fasth3_8step_v2_**pruned**_int8_convrot.safetensors`；
 - `minimax-h3` 系列（含 lift 两支）用**完整版** `minimax_h3_*_int8_convrot.safetensors`。
 
 两者不能互换，**LoRA 也会跟着不匹配**：`*_pruned_*.safetensors` 是给 curve-form 权重转换的，
