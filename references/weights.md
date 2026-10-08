@@ -113,8 +113,12 @@ hf download Comfy-Org/MiniMax-H3 diffusion_models/minimax_h3_fl2va_int8_convrot.
   （v1.34.0 起；Comfy-Org 预计算 AdaLN 曲线表，比完整版小 18 GB，w6a8 量化 Ada/Ampere 均可跑）。
 
 LoRA 与权重形态**硬绑定**：两者不能互换 —— 权重形态变了，LoRA 的 key 集合跟着变，
-形态不匹配时**静默不加载**（不报错，只是没效果）。edit 档（pruned w6a8）**勿开 `turbo_lora`**：
-LoRA patch 能挂上（208 patches）但在采样第 2 步触发 stack overflow 崩溃（10-08 实测）。
+形态不匹配时**静默不加载**（不报错，只是没效果）。
+
+**comfy_kitchen 版本下限 `>= 0.2.37`**（部署必查）：`0.2.36` 的 w4a8 反量化 kernel 有
+stack-overflow 回归——量化权重叠 LoRA patch（turbo）时采样第 2 步杀死进程（10-08 实测 2/2，
+`0.2.37` 修复）；`0.2.35` 及更早不支持 ref2va 权重的 `K=8064` 层（采样即 ValueError）。
+turbo×w6a8 在 `0.2.37` 下可用（8 步 ~44s/it，8GiB offload 工况，10-08 实测）。
 
 ## LoRA：注意命名体系
 
