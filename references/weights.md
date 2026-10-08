@@ -106,12 +106,15 @@ hf download Comfy-Org/MiniMax-H3 diffusion_models/minimax_h3_fl2va_int8_convrot.
 - 想省显存可以换更小的量化版（`nvfp4` / `pruned_int8_convrot` 等，同仓库同目录下就有），
   但**必须同步改工作流 JSON 里的文件名** —— 权重名与 JSON 是硬绑定。
 
-## pruned 与完整版不能互换
+## 权重形态：按档认文件
 
-- `minimax-h3` 系列（含 lift 两支）用**完整版** `minimax_h3_*_int8_convrot.safetensors`。
+- `minimax-h3` / `-lift`（生成档）用**完整版** `minimax_h3_fl2va_int8_convrot.safetensors`。
+- `minimax-h3-edit` / `-lift-edit`（编辑档）用**剪枝版** `minimax_h3_ref2va_pruned_w6a8.safetensors`
+  （v1.34.0 起；Comfy-Org 预计算 AdaLN 曲线表，比完整版小 18 GB，w6a8 量化 Ada/Ampere 均可跑）。
 
-两者不能互换，**LoRA 也会跟着不匹配**：`*_pruned_*.safetensors` 是给 curve-form 权重转换的，
-挂到完整版权重上会 key 不匹配 → **LoRA 静默不加载**（不报错，只是没效果）。
+LoRA 与权重形态**硬绑定**：两者不能互换 —— 权重形态变了，LoRA 的 key 集合跟着变，
+形态不匹配时**静默不加载**（不报错，只是没效果）。edit 档（pruned w6a8）**勿开 `turbo_lora`**：
+LoRA patch 能挂上（208 patches）但在采样第 2 步触发 stack overflow 崩溃（10-08 实测）。
 
 ## LoRA：注意命名体系
 
