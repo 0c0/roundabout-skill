@@ -80,7 +80,7 @@ repo ID 与 repo 内路径完全一致，只换端点。`curl` 形式的下载�
 Comfy-Org 的仓库用 `split_files/` 前缀，**那不是 ComfyUI 的目录**：
 
 ```bash
-hf download Comfy-Org/MiniMax-H3 diffusion_models/minimax_h3_fl2va_int8_convrot.safetensors --local-dir models
+hf download Comfy-Org/MiniMax-H3 diffusion_models/minimax_h3_fl2va_pruned_w6a8.safetensors --local-dir models
 # 下完还得手动把 split_files/... 挪到 models/diffusion_models/ 之类的位置
 ```
 
@@ -108,9 +108,13 @@ hf download Comfy-Org/MiniMax-H3 diffusion_models/minimax_h3_fl2va_int8_convrot.
 
 ## 权重形态：按档认文件
 
-- `minimax-h3` / `-lift`（生成档）用**完整版** `minimax_h3_fl2va_int8_convrot.safetensors`。
-- `minimax-h3-edit` / `-lift-edit`（编辑档）用**剪枝版** `minimax_h3_ref2va_pruned_w6a8.safetensors`
-  （v1.34.0 起；Comfy-Org 预计算 AdaLN 曲线表，比完整版小 18 GB，w6a8 量化 Ada/Ampere 均可跑）。
+- 五支视频档**全部用剪枝版 w6a8**：生成档 `minimax_h3_fl2va_pruned_w6a8.safetensors`
+  （v1.37.0 起；比完整版小 18 GB，本机实测 20 步采样 8.99 vs 完整版 11.44 s/it ≈ 1.27×，画质目视无损）、
+  编辑档 `minimax_h3_ref2va_pruned_w6a8.safetensors`（v1.34.0 起）。
+  Comfy-Org 预计算 AdaLN 曲线表，w6a8 量化 Ada/Ampere 均可跑。
+- fl2va 的 turbo LoRA 与 w6a8 **key 兼容已实测**（10-09，采样 ~19 vs 纯 w6a8 8.99 s/it，
+  patch 生效、日志无 key 丢失）；但 8GiB offload 工况下 turbo×w6a8 8 步总耗时反超纯 20 步
+  （dequant 开销），本地提速别走 turbo×w6a8 组合。
 
 LoRA 与权重形态**硬绑定**：两者不能互换 —— 权重形态变了，LoRA 的 key 集合跟着变，
 形态不匹配时**静默不加载**（不报错，只是没效果）。
