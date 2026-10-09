@@ -154,3 +154,6 @@ turbo×w6a8 在 `0.2.37` 下可用（8 步 ~44s/it，8GiB offload 工况，10-08
 2. 放进的是**对应子目录**（`value not in list` 就是这里错了）。
 3. 视频档别忘**音频 VAE**（`vae/minimax_h3_audio_vae_fp32.safetensors`）——漏了会在解码段失败，
    与「权重没下」的表现不一样，容易误判成别的问题。
+## 机器本地权重覆盖（v1.39.0 起）
+
+同一仓库多机部署时，量化权重在免 offload 的大显存机器上有 dequant 每步税反而更慢。各机器可建 **gitignored** 的 `device_weights.yaml`（模板 `device_weights.example.yaml`）按本机硬件覆盖工作流里的权重文件名（如 4090 侧换回全量 bf16）；启动日志逐条回显 `device override: ...`。文件不存在 = 零覆盖。
