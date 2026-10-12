@@ -50,7 +50,7 @@
 `get_tool_info` · `generate_image` · `edit_image` · `remove_background` · `process_image` · `generate_video` ·
 `list_models` · `get_task` · `cancel_task` · `queue_status` · `get_workflow` ·
 `reload` · `health` · `get_view_url` · `get_skills` · `check_weights` ·
-`manage_workflows`（工作流模板/实例双层：`list`=来源与同步状态 / `deploy`=从模板部署实例并热加载）·
+`manage_workflows`（工作流模板/实例双层：`list`=来源与同步状态 / `deploy`=从模板部署实例并热加载；跨卡部署时返回的 `hints` 会提醒替换算力后缀，如 SM86→SM89）·
 `view_board`
 
 传输 `streamable-http`，端点 `/mcp`（与 ComfyUI 同端口），与 REST 完全互通。
