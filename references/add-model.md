@@ -68,7 +68,7 @@ if "nodes" in d and "last_node_id" in d:  # UI 格式 → registry.load 会直�
 
 ```yaml
   <model-name>:
-    workflow: <file.json>          # 与 workflows/ 下文件名一致
+    workflow: <file.json>          # 解析顺序：先 workflows.local/（本机实例层）再回落 workflows/（模板，更新会被覆盖）；要长期定制先 POST /admin/workflows/deploy 落实例
     description: <一句话，agent 靠它选模型，写清擅长什么>
     mode: image                     # image | video
     capabilities:

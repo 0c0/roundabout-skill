@@ -43,13 +43,14 @@
 | `GET\|POST\|DELETE /roundabout/view/board[...]` | 任务看板：当前看板 / 钉入 / 删单条 / 清空归档 / 历史列表 / 归档详情 / 载回 / 删归档。完整八条见仓库 `API.md` §7.1 |
 | `POST /roundabout/view/reveal` | 把某张**外部卡**指向的路径交给系统文件管理器打开（目录进入 / 文件定位）—— 仅本机访问时执行 |
 
-管理端点（`/roundabout/admin/*`，工作流上传/删除、`models.yaml` 读写与结构化编辑）见仓库 `API.md`。
+管理端点（`/roundabout/admin/*`：状态 / 队列 / 权重体检 / tool-info / 工作流实例层）见仓库 `API.md`。
 
 ## 3. MCP 工具（默认开启）
 
 `get_tool_info` · `generate_image` · `edit_image` · `remove_background` · `process_image` · `generate_video` ·
 `list_models` · `get_task` · `cancel_task` · `queue_status` · `get_workflow` ·
 `reload` · `health` · `get_view_url` · `get_skills` · `check_weights` ·
+`manage_workflows`（工作流模板/实例双层：`list`=来源与同步状态 / `deploy`=从模板部署实例并热加载）·
 `view_board`
 
 传输 `streamable-http`，端点 `/mcp`（与 ComfyUI 同端口），与 REST 完全互通。
