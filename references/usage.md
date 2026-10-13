@@ -51,6 +51,7 @@
 `list_models` · `get_task` · `cancel_task` · `queue_status` · `get_workflow` ·
 `reload` · `health` · `get_view_url` · `get_skills` · `check_weights` ·
 `manage_workflows`（工作流模板/实例双层：`list`=来源与同步状态 / `deploy`=从模板部署实例并热加载；跨卡部署时返回的 `hints` 会提醒替换算力后缀，如 SM86→SM89）·
+模型专属参数（如 `turbo_lora` / `teacache_threshold`）按模型声明的范围校验，越界 400、不支持的模型传了也 400——取值范围以 tool-info 各模型 `fields` 的 min/max 为准 ·
 `view_board`
 
 传输 `streamable-http`，端点 `/mcp`（与 ComfyUI 同端口），与 REST 完全互通。
