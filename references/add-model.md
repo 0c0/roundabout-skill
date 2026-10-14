@@ -66,6 +66,8 @@ if "nodes" in d and "last_node_id" in d:  # UI 格式 → registry.load 会直�
 
 ## 2. 写 models.yaml
 
+**本机专属模型 / 本机微调写 `models.local.yaml`（gitignored，模板 `models.local.yaml.example`），不进仓库**：合并语义 = 顶层键覆盖；`models` 按模型名合并（新名字追加为本机专属档；同名条目浅合并，只覆盖写的键，其余继承 git 版，上游更新不会抹掉新字段）。微调生效默认值只需写 `defaults:`，不必重写 `params:` 声明。要进仓库共享的条目才写 models.yaml。校验/加载对两个文件统一生效，语法错误在 local 文件会带文件名报错。
+
 ```yaml
   <model-name>:
     workflow: <file.json>          # 解析顺序：先 workflows.local/（本机实例层）再回落 workflows/（模板，更新会被覆盖）；要长期定制先 POST /admin/workflows/deploy 落实例

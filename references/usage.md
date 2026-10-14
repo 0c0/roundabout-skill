@@ -48,6 +48,7 @@
 ## 3. MCP 工具（默认开启）
 
 `get_tool_info` · `generate_image` · `edit_image` · `remove_background` · `process_image` · `generate_video` ·
+`generate_speech`（文本转语音 + 音色设计：`input`=要朗读的文本，`instructions`=音色描述；同步回 url，长文本 `background="pending"` 异步）·
 `list_models` · `get_task` · `cancel_task` · `queue_status` · `get_workflow` ·
 `reload` · `health` · `get_view_url` · `get_skills` · `check_weights` ·
 `manage_workflows`（工作流模板/实例双层：`list`=来源与同步状态 / `deploy`=从模板部署实例并热加载；跨卡部署时返回的 `hints` 会提醒替换算力后缀，如 SM86→SM89）·
