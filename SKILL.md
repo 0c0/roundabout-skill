@@ -2,7 +2,7 @@
 name: roundabout
 description: ComfyUI-Roundabout 网关（ComfyUI 自定义节点）的使用手册 —— 用 MCP 工具出图出视频、选模型与传参、异步任务与产物、注册与摘除工作流模型、下载权重、排障，以及核对这套文档与实现的说法是否一致。Use when the user 说「roundabout」「走网关生成」「generate_image」「generate_video」「MCP 生图/生视频」「/v1/images/generations」「/v1/videos/generations」「注册工作流」「models.yaml 加一个模型」「把这个档下掉」「权重下不下来」「文件名对不上」，或需要驱动装了本节点的 ComfyUI 出图出视频。
 agent_created: true
-skill_version: 1.20.1
+skill_version: 1.21.0
 ---
 
 # Roundabout 网关
@@ -53,12 +53,13 @@ REST（`/v1/*`）与 MCP **完全互通**，仅当手上没有 MCP 通道时才�
 ## 三条最容易踩的机制（先记住再动手）
 
 1. **`workflow_overrides` 是通用路径注入器**，与参数白名单**无关**：
-   `{"910.inputs.scale": 2.0}` 直接改节点，路径不存在会 400。想临时掉一个旋钮不必先注册成请求字段。
+   `{"125.inputs.lowres_scale": 0.6}` 直接改节点，路径不存在会 400。想临时掉一个旋钮不必先注册成请求字段。
 2. **字段注入有三道闸（白名单 → `bindings` → `values`），缺一道就静默无效**。
    ⛔ 不在白名单的 binding 被丢掉，**只打 `unknown binding key` 警告**；
    ⛔ **`defaults` 也只对「同时出现在 `bindings` 里」的键生效**
    ⇒ 只写 `defaults` 却不配 binding ＝ **双重死键**，真实值只剩工作流模板字面值。
    ⛔ 新增 REST 字段必须同步 MCP 形参 + values 字典（守护测试 `tests/test_mcp_param_coverage.py`）。
+   ⛔ **节点签名会随插件升级变**（如 Spark 的 `enabled` → `mode`）：旧落点变死键，`set_path` 照样命中不报错、值却没人读。**改注意力/采样这类第三方节点落点前，先按节点 schema 核对参数名**。
    改完 yaml 不用猜：reload 之后翻日志，有 `unknown binding key` 就是没接上。
 3. **找不到落点时先看提交图**：MCP `get_workflow`，或产物内嵌的提交图（`.png` 的 `prompt` tag /
    `.mp4` metadata）。**判「某发实际跑了什么」只看三处**：`/history` 提交图、日志的 `N/M` 行、

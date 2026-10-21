@@ -13,10 +13,10 @@
 | 抠图（按语义选目标） | `process_image(action="segment")` → SAM3 | `prompt` = 目标描述（如 "the cat"），`threshold` 默认 0.5 |
 | 视频（统一入口） | `minimax-h3`（FL2VA） | 文生 / 首帧 / 首尾帧 / **参考图**；带 `reference_videos`/`reference_audios` **自动换档**到 `-edit`，不必手动选 |
 | 视频（音视频参考档） | `minimax-h3-edit`（Ref2VA） | 多视频 + 多音频 + 多图；通常由 `minimax-h3` 自动换档到达，直调等价 |
-| 视频（要更大画面） | `minimax-h3-lift` / `-lift-edit` | 原生采样 → 确定性 latent lift，输出画布 ×scale |
+| 视频（要更大画面） | `minimax-h3-lift` / `-lift-edit` | **SelfLift 引擎**：先在目标画布的低分前缀上跑（`lowres_scale`，默认 0.75），再用一次学习式升采样补齐——输出就是 `size`，**没有倍率**（`scale` 已下线，传了报 400） |
 | 视频（快档） | `minimax-h3` + `turbo_lora: 1.0` | 8 步蒸馏 Turbo，收益 2.05~2.72×（长任务更高）；配 `steps≈8` |
 
-**选型要诀**：要最大质量用 `minimax-h3` 系默认 20 步；要快档用 `turbo_lora: 1.0` + `steps≈8`（E30 三形态实测 2.05~2.72×，四轴失效模式与 base20 持平）；要分辨率走 **lift**，不是直接拉 `size`。排期心算：**每步成本随帧数超线性（≈帧^1.26，E34）**——15s 任务的每步成本约为 6s 的 3.2 倍而非 2.4 倍，别用「每秒固定成本」线性外推。
+**选型要诀**：要最大质量用 `minimax-h3` 系默认 20 步；要快档用 `turbo_lora: 1.0` + `steps≈8`（E30 三形态实测 2.05~2.72×，四轴失效模式与 base20 持平）；要更大画布走 **lift**：`size` 直接写目标尺寸，`lowres_scale` 决定前缀阶段省多少（只缩前缀，不改输出）。排期心算：**每步成本随帧数超线性（≈帧^1.26，E34）**——15s 任务的每步成本约为 6s 的 3.2 倍而非 2.4 倍，别用「每秒固定成本」线性外推。
 
 ## 2. REST 端点
 
@@ -150,17 +150,18 @@ skill 内容版本，与各 skill 仓库 SKILL.md frontmatter 的 `skill_version
 |---|---|
 | `model` | 默认 `qwen-image-2.1-turbo`（`DEFAULT_MODEL` 可覆盖） |
 | `seed` | 不传 / `-1` = 每次随机；正整数 = 固定复现。⚠️ **迭代编辑（如 `qwen-image-2.1` 带参考图连改多轮）每轮必须换新 seed**（不传即可）：同 seed + denoise=1.0 全图重绘时残差噪声**线性累加**，两三轮后画面「变脏」（09-28 flatSD 实测：干净底 2.25 → 连改两轮 34.3；同底换新 seed = 2.72 干净；降 denoise 反而更脏，此路不通）。只在要**复现某张已出图**时才传正整数 |
-| `size` | 视频：`<tier>p-<ratio>` 或 `<ratio>@<tier>`，tier ∈ {`480p`,`576p`,`720p`,`768p`,`1080p`,`1440p`}，ratio ∈ {`1:1`,`3:4`,`4:3`,`16:9`,`9:16`}；或直接 `WxH`。**所有视频尺寸对齐 32 的倍数**（latent 偶数 × 16 下采样；`720p` 实际 736、`768p-16:9` = 1376×768，`WxH` 自动 round），实际输出看响应 `size` 回显（**实测值**：视频由工作流内的尺寸探针自报、图像读产物字节头 —— 同步与异步回执都带；漏传 `size` 就落模型默认，回执会把它照实报出来）。**默认画布 1344×768 是 7:4**，别当成 `768p-16:9`。**1440p 在 8 GiB 档直接生跑不动，要更大画面走 lift**（`output_size` 给期望输出、网关反推倍率；仅 lift 两支） |
+| `size` | 视频：`<tier>p-<ratio>` 或 `<ratio>@<tier>`，tier ∈ {`480p`,`576p`,`720p`,`768p`,`1080p`,`1440p`}，ratio ∈ {`1:1`,`3:4`,`4:3`,`16:9`,`9:16`}；或直接 `WxH`。**所有视频尺寸对齐 32 的倍数**（latent 偶数 × 16 下采样；`720p` 实际 736、`768p-16:9` = 1376×768，`WxH` 自动 round），实际输出看响应 `size` 回显（**实测值**：视频由工作流内的尺寸探针自报、图像读产物字节头 —— 同步与异步回执都带；漏传 `size` 就落模型默认，回执会把它照实报出来）。**默认画布 1344×768 是 7:4**，别当成 `768p-16:9`。**1440p 在 8 GiB 档生跑不动，要更大画布也走 lift**（lift 两支的 `size` 就是最终画布，`output_size` 是同义入口；前缀阶段的画布由 `lowres_scale` 决定） |
 | `duration` | 秒，网关允许 1–15。⚠️ H3 系权重的训练区间是 **124–362 帧 ≈ 5–15 s**，`d≤4` 落在分布外 —— **别拿 d≤4 的产物下画质结论**（快速跑通用可以） |
-| `attention` | `sparse`（默认，块稀疏加速，更快更省显存）/ `dense`（关闭稀疏换致密画质，更慢更吃显存）。**只对 base 四支开放**（`minimax-h3` / `-edit` / `-lift` / `-lift-edit`）；其它模型传了报 400。另有官方 **Veda** 稀疏注意力节点（未接入网关，无对应参数可传；10-05 实测本机端到端仅 -7% 且同 seed 构图全换），要手工使用见 skill `h3-sparse-attention` 的 Veda 节 |
-| `turbo_lora` | Turbo 蒸馏 LoRA 强度开关（v1.32.0 起，**h3 / edit 两支有绑定**）：0=关（默认，零开销）；1.0=8 步蒸馏 Turbo（h3 用 fl2v_turbo_8step_v1.0，edit 档用 ref2v_turbo_8step_v1.0_768p），**必须配 `steps≈8`**；中间值=部分蒸馏（0.65@8 步 10-05 实测：端到端 -47%、画面干净、契合度不降，但**同 seed 构图全换**——任何权重扰动下 seed 锚定构图都不可靠）。1.0 档收益 2.05~2.72×（E30/E32/E33 三形态实测，长任务更高）；已知代价：运动模糊略强、多动倾向（节奏型动作把子窗间回落段写足）、edit 档每步成本 ~4× 于 T2VA（排期按此放大）。需 **comfy_kitchen >= 0.2.37**（0.2.36 叠 LoRA 崩进程、≤0.2.35 不支持 ref2va 权重） |
+| `attention` | `sparse`（默认 → 落点 `159.inputs.mode="fidelity"`，Spark 块稀疏全功能，更快更省显存）/ `dense`（→ `mode="dense"`，**完全旁路 Spark** 走原生致密注意力，更慢更吃显存）。节点另有 `speed` / `custom` 档，网关不暴露（工作流里按 speed+steps 配套写死）。**只对 base 四支开放**（`minimax-h3` / `-edit` / `-lift` / `-lift-edit`）；其它模型传了报 400。另有官方 **Veda** 稀疏注意力节点（未接入网关，无对应参数可传；10-05 实测本机端到端仅 -7% 且同 seed 构图全换），要手工使用见 skill `h3-sparse-attention` 的 Veda 节 |
+| `turbo_lora` | Turbo 蒸馏 LoRA 强度开关（**视频四支都有绑定**：`h3` / `edit` 默认 0，`lift` / `lift-edit` 默认 **1.0**——SelfLift 本身是 8 步档）：0=关（零开销）；1.0=8 步蒸馏 Turbo（h3 用 fl2v_turbo_8step_v1.0，edit 档用 ref2v_turbo_8step_v1.0_768p），**必须配 `steps≈8`**；中间值=部分蒸馏（0.65@8 步 10-05 实测：端到端 -47%、画面干净、契合度不降，但**同 seed 构图全换**——任何权重扰动下 seed 锚定构图都不可靠）。1.0 档收益 2.05~2.72×（E30/E32/E33 三形态实测，长任务更高；lift 两支见 §4.2）；已知代价：运动模糊略强、多动倾向（节奏型动作把子窗间回落段写足）、edit 档每步成本 ~4× 于 T2VA（排期按此放大）。需 **comfy_kitchen >= 0.2.37**（0.2.36 叠 LoRA 崩进程、≤0.2.35 不支持 ref2va 权重） |
+| `vpack_ratio` | 参考视频 latent 压缩（**仅 edit 两支有绑定**，节点 `970 SparkVPack`）：`auto`（默认：带 `reference_videos` 时用 `2/5`，不带则 `0/5` 直通）/ `0/5` 不压 / `1/5` 轻 / `2/5` 官方推荐 / `3/5` 最强（每 5 帧保留 2 帧）。**只压参考视频 latent 的时间维**，空间分辨率与生成 latent 都不变 ⇒ 省的是注意力 token 数，不是画质档位。显式要压缩却没给参考视频 → 400（节点对空参考直接 ValueError，不静默直通）。`h3` / `lift` 两支无绑定，传了报 400 |
 | `first_frame` / `last_frame` | **首尾帧**（`minimax-h3` / `-lift`）：帧会实际成为输出的第一/最后一帧，按画布 size cover 裁剪（等比铺满 + 居中裁，不变形）；单图也可用 `first_frame` 只给首帧。**可与 `reference_images` 同传**（v1.17 统一节点拓扑：帧槽=帧语义、参考槽=conditioning 语义）；无帧槽的模型传了 400 |
 | `reference_images` / `_videos` / `_audios` | 参考素材（H3 四支 + 图像档；**帧与参考图可同传**）。参考视频/音频=视频编辑 / 动作 / 运镜 / 音频复用，主口径走 Ref2VA 权重（`minimax-h3-edit` / `-lift-edit`）—— **槽位在 Ref2VA 系两支**（`minimax-h3-edit` / `-lift-edit`）；传给 `minimax-h3` / `-lift` 时网关**自动换档**到对应 -edit 执行（09-25 双实测 FL2VA 权重不迁移动作/音色，参考内容只有 Ref2VA 消费；换档后走 edit 槽位规则，帧与音视频参考不能同单）；按请求实际提供数量裁剪，未传的槽提交前从图里删掉。**图像档也吃 `reference_images`**（`qwen-image-2.1` 6 槽 / `flux2-klein-image-edit-turbo` 4 槽）；`image` 只收单张，多图必须走这里，超上限报 400。`qwen-image-2.1` 是**文生与多图编辑同一支**：一张参考都不传即纯文生（这时 `size` 才生效），1–6 张则 **`size` 不生效、输出尺寸跟随第 1 张参考图**（要换画幅=预裁画布图，见下方专有口径） |
 | `background:"pending"` | 异步；立即返回 task，用 `get_task` / `GET /v1/videos/tasks/{id}` 轮询。**轮询到 `completed` 时回执顶层就有 `size`**（实际输出尺寸，与同步响应同位），不必再 ffprobe 产物；**同步回执同样带 `size`** —— 交付前核对它与预期一致 |
 | `response_format` | `url`（默认）/ `path`（落盘绝对路径）/ `b64_json` |
 | `filename_prefix` | 落盘前缀，可含 `/` 建子目录 |
 | `image` / 帧与参考素材 | **一律传绝对路径且先确认文件存在**：裸文件名会被当 base64 解码，落成 12 字节坏文件；不存在的路径按 base64 校验直接 400 |
-| `workflow_overrides` | **通用路径注入器**：`{"910.inputs.scale": 2.0}`。**REST 全量可用；MCP 仅图像工具（`generate_image` / `edit_image`）暴露，视频工具不暴露**——MCP 视频请求要精调就走正式参数，或改走 REST。`set_path` 只要求「最后一跳命中已存在的键」，**与 `KNOWN_PARAMS` 白名单无关**。路径不存在会报 400（typo 会炸出来，不会静默无效） |
+| `workflow_overrides` | **通用路径注入器**：`{"125.inputs.lowres_scale": 0.6}`。**REST 全量可用；MCP 仅图像工具（`generate_image` / `edit_image`）暴露，视频工具不暴露**——MCP 视频请求要精调就走正式参数，或改走 REST。`set_path` 只要求「最后一跳命中已存在的键」，**与 `KNOWN_PARAMS` 白名单无关**。路径不存在会报 400（typo 会炸出来，不会静默无效） |
 
 **同步 vs 异步**：图片请求始终同步返回；视频建议 `background:"pending"` —— 同步路径下客户端容易
 先超时，而服务端**照跑到底**（真占 GPU 真落产物）。
@@ -179,6 +180,19 @@ skill 内容版本，与各 skill 仓库 SKILL.md frontmatter 的 `skill_version
 - **`denoise`**：未暴露（bindings 无此项，模板 `KSampler.denoise` 硬编码 `1`）。
 - **节点名**：2.1 用 `TextEncodeQwenImage21`（`comfy_extras/nodes_qwen.py`）；`TextEncodeQwenImageEdit` / `…EditPlus` 是旧 Qwen-Image-Edit 的，别挂错。
 - **缓存**：同参数重复请求命中服务端缓存（≈1.0s 返回）⇒ 对比实验必须换 seed，判复现必须锁 seed。
+
+### 4.2 视频 lift 两支（SelfLift）
+
+- **输出尺寸 = `size`**：`scale` 倍率已下线（传了报 400）；`output_size` 是 `size` 的同义入口。
+  尺寸仍是 32 倍数（`720p`=736、`768p-16:9`=1376×768），别传奇数边长。
+- **`lowres_scale`**（默认 0.75，范围 0.25–1.0）：低分辨率前缀阶段的画布比例。**越低越省算力**，
+  但放大器要补的跨度越大、细节越容易糊；`1.0` = 前缀与输出同尺寸，放大阶段白付一次开销（等于没省）。
+- **`transition_step`**（默认 5，范围 1–8）：前缀阶段消耗的采样步数，其余步数在全分辨率上跑。
+  总步数仍由 `steps` 决定（默认 8）；`transition_step` 逼近总步数 ⇒ 前缀吃满、全分辨率没步可跑。
+- **采样器固定 `euler`**：SelfLift 节点对 `sampler_function` 有硬断言（`sample_euler`），换别的直接报错。
+- **`turbo_lora` 默认 1.0**：这是 8 步蒸馏档的既定配置，改 0 就等于「8 步非蒸馏」，画质没有对应落点。
+- **进度条分两段**（前缀 + 全分辨率），不是一次单调推进 —— 排期按总步数算，别拿单段 `s/it` 外推。
+- **不含 `teacache`**：lift 两支没有 185 号节点，`teacache_threshold` 只在 `minimax-h3` / `minimax-h3-edit` 两支上有绑定。
 
 ## 5. 运维
 
