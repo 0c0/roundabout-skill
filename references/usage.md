@@ -226,6 +226,13 @@ skill 内容版本，与各 skill 仓库 SKILL.md frontmatter 的 `skill_version
 超过最高档也全部落到最高档。
 ⛔ **没有 OOM 回退机制** —— 分块仍 OOM 就 `unload_all_models()` → 直接 FAILURE，不降档不重试。
 
+**分块值分两层，别看错**：模板 `158` 里写死的 `6 / 4096` 只是兜底（UI 直跑、探不到显存、
+模型没开 `vram_adaptive` 这几条旁路吃的就是它）；走网关时档位值在提交瞬间覆盖模板 —— 所以
+「打开 JSON 看到 chunks=1 以为没分块」是误判，判据以启动日志 `提交时覆盖模板字面值` 或
+`get_workflow` 取回的提交图为准。`head_chunks` 全档无绑定（与 Spark 互斥，档位表那列不生效）；
+`highres_tiling` **不按档位自动开**（SelfLift 该开关会改画质），显存紧时给 lift 两支显式传
+`highres_tiling: true`。
+
 ## 6. 重启命令
 
 ```
