@@ -6,9 +6,7 @@
 
 | 用途 | 首选 | 备选 / 备注 |
 |---|---|---|
-| 文生图（默认） | `z-image-turbo`（8 步） | `z-image`（30 步，更精细） |
-| 文生图（Boogu 系） | `boogu-image-turbo` | `boogu-image-base`（30 步）/ `boogu-image-base-4step` |
-| **改图内文字** | `boogu-image-edit-turbo` | `boogu-image-edit`（30 步） |
+| 文生图（默认） | `qwen-image-2.1`（25 步） | `qwen-image-2.1-turbo`（8 步 turbo：steps/cfg 焊死官方落点，`turbo_lora` 默认 1.0 别设 0） |
 | **语义改写 / 换背景材质** | `flux2-klein-image-edit-turbo` | 尺寸跟随输入图，`size` 不生效，输出约 1MP |
 | **图像放大** | `process_image(action="upscale")` → SeedVR2 7B Int8 | `multiplier` 1-8 默认 4，输出 = 输入 × 倍率；8GiB 显存靠 offload 慢速可跑 |
 | 抠图（整图主体） | `process_image(action="remove_background")` → BiRefNet | promptless，输出透明 PNG |
@@ -150,7 +148,7 @@ skill 内容版本，与各 skill 仓库 SKILL.md frontmatter 的 `skill_version
 
 | 参数 | 说明 |
 |---|---|
-| `model` | 默认 `z-image-turbo`（`DEFAULT_MODEL` 可覆盖） |
+| `model` | 默认 `qwen-image-2.1`（`DEFAULT_MODEL` 可覆盖） |
 | `seed` | 不传 / `-1` = 每次随机；正整数 = 固定复现。⚠️ **迭代编辑（如 `qwen-image-2.1` 带参考图连改多轮）每轮必须换新 seed**（不传即可）：同 seed + denoise=1.0 全图重绘时残差噪声**线性累加**，两三轮后画面「变脏」（09-28 flatSD 实测：干净底 2.25 → 连改两轮 34.3；同底换新 seed = 2.72 干净；降 denoise 反而更脏，此路不通）。只在要**复现某张已出图**时才传正整数 |
 | `size` | 视频：`<tier>p-<ratio>` 或 `<ratio>@<tier>`，tier ∈ {`480p`,`576p`,`720p`,`768p`,`1080p`,`1440p`}，ratio ∈ {`1:1`,`3:4`,`4:3`,`16:9`,`9:16`}；或直接 `WxH`。**所有视频尺寸对齐 32 的倍数**（latent 偶数 × 16 下采样；`720p` 实际 736、`768p-16:9` = 1376×768，`WxH` 自动 round），实际输出看响应 `size` 回显（**实测值**：视频由工作流内的尺寸探针自报、图像读产物字节头 —— 同步与异步回执都带；漏传 `size` 就落模型默认，回执会把它照实报出来）。**默认画布 1344×768 是 7:4**，别当成 `768p-16:9`。**1440p 在 8 GiB 档直接生跑不动，要更大画面走 lift**（`output_size` 给期望输出、网关反推倍率；仅 lift 两支） |
 | `duration` | 秒，网关允许 1–15。⚠️ H3 系权重的训练区间是 **124–362 帧 ≈ 5–15 s**，`d≤4` 落在分布外 —— **别拿 d≤4 的产物下画质结论**（快速跑通用可以） |
@@ -168,6 +166,8 @@ skill 内容版本，与各 skill 仓库 SKILL.md frontmatter 的 `skill_version
 先超时，而服务端**照跑到底**（真占 GPU 真落产物）。
 
 ### 4.1 `qwen-image-2.1` 专有口径
+
+- **turbo 档**（`qwen-image-2.1-turbo`，别名 `qwen-turbo`）：8 步官方落点焊死在工作流的 ManualSigmas 里，`steps` / `cfg` / `sampler` / `scheduler` 传了无效；`turbo_lora`（默认 1.0）**别设 0**（底模直跑 8 步官方落点没练过，画质必坏）。其余口径（6 槽参考、跟随第 1 张尺寸、迭代换 seed）与底模档一致。
 
 - **画幅参数**：只认 `size`（`"WxH"` 字符串）；顶层 `width`/`height` **不是可传参数**，传了**静默丢弃**落回默认 `1024×1024`（不报错不警告）。画布边长须为 **32 的倍数**，否则被悄悄改写。
 - **纯文生**：`size` 直传生效，可非方图，原生直出到 2K（2048×2048）。
