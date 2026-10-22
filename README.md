@@ -12,7 +12,7 @@ list_models → generate_image / edit_image / generate_video → get_task → ge
 
 **不要先探测环境**（不找目录、不 curl 端口、不问地址）。REST（`/v1/*`）与 MCP 完全互通，仅当没有 MCP 通道时走它。
 
-显存 / 分块档位不用管：节点 init 时已自探并写进模型默认值。
+显存 / 分块档位不用管：节点 init 时按显存自探档位，提交时注入；模板里的字面值只是旁路兜底（UI 直跑 / 探测失败时才用它），所以别拿 JSON 里的 `chunks` 判断实际分块。
 
 ## 覆盖能力
 
@@ -43,7 +43,7 @@ roundabout-skill/
 
 ## 三条最容易踩的机制
 
-1. **`workflow_overrides` 是通用路径注入器**，与参数白名单无关：`{"910.inputs.scale": 2.0}` 直接改节点，路径不存在会 400。
+1. **`workflow_overrides` 是通用路径注入器**，与参数白名单无关：`{"970.inputs.compression_ratio": "3/5"}` 直接改节点，路径不存在会 400。
 2. **字段注入三道闸（白名单 → `bindings` → `values`），缺一道静默无效**——只写 `defaults` 不配 binding ＝双重死键；改完 reload 后翻日志查 `unknown binding key`。
 3. **找不到落点先看提交图**：`get_workflow` 或产物内嵌提交图；判「实际跑了什么」只看 `/history` 提交图、日志 `N/M` 行、产物 metadata，别信文件名 / tag。
 
@@ -58,4 +58,4 @@ roundabout-skill/
 
 ## 版本
 
-`skill_version: 1.18.5`
+`skill_version: 1.21.1`
