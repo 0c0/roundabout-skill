@@ -66,6 +66,8 @@ if "nodes" in d and "last_node_id" in d:  # UI 格式 → registry.load 会直�
 
 ## 2. 写 models.yaml
 
+**本机专属模型 / 本机微调写 `models.local.yaml`（gitignored，模板 `models.local.yaml.example`），不进仓库**：合并语义 = 顶层键覆盖；`models` 按模型名合并（新名字追加为本机专属档；同名条目浅合并，只覆盖写的键，其余继承 git 版，上游更新不会抹掉新字段）。微调生效默认值只需写 `defaults:`，不必重写 `params:` 声明。要进仓库共享的条目才写 models.yaml。校验/加载对两个文件统一生效，语法错误在 local 文件会带文件名报错。
+
 ```yaml
   <model-name>:
     workflow: <file.json>          # 解析顺序：先 workflows.local/（本机实例层）再回落 workflows/（模板，更新会被覆盖）；要长期定制先 POST /admin/workflows/deploy 落实例
@@ -94,8 +96,20 @@ if "nodes" in d and "last_node_id" in d:  # UI 格式 → registry.load 会直�
 
 1. **`capabilities` 语义**：只写 `image-to-image` → 不传 `image` 会 400（适合专做编辑的模型）；写 `text-to-image` 也能同时收图（registry 见 `image` 绑定会自动补 `image-to-image`）。
 2. **全局 `defaults.params` 会被合并进每个模型**（`{**shared_defaults, **模型 defaults}`）。默认负向含 `text, watermark` —— 对「在图上写字」类模型是反作用，必须在模型自己的 `defaults` 里写 `negative_prompt: ''` 覆盖。⚠️ **`defaults` 只对「同时出现在 `bindings` 里」的键生效**：想让某参数有内置默认值，必须同时给它一条 binding（且该键要在 `KNOWN_PARAMS` 里），否则默认值静默失效、模板字面值胜出 —— `defaults` 里留着它只会误导下一个读的人。
-3. **节点 id 含冒号**（`45:36`）照抄，yaml 里是字符串不影响。
-4. **参考槽不叫 `ref_image_N` 时**：视频模型的 `references` 段默认按 `ref_images.ref_image_{i}` 这套键名去校验聚合节点上的 input。若聚合节点收的是别的名字（典型：`MiniMaxH3ImageToVideo` 的首尾帧是**关键帧**槽 `first_frame` / `last_frame`，不是参考 token），用 `image_keys` 逐槽覆盖（`videos` / `audios` 同理有 `video_keys` / `audio_keys`），列表必须与节点列表等长，否则启动即报错。
+3. **模型专属参数走 `params:` 块声明式注册（v1.43.0，优先于手写 bindings/defaults）**：
+
+       params:
+         turbo_lora:
+           type: float          # float|int|str|bool
+           min: 0
+           max: 1.5
+           default: 0           # 不传时工作流实际生效的值
+           bind: '160.inputs.strength_model'
+           description: 面向调用方的参数说明
+
+   声明即注册：`bind` 自动并入 bindings（**免 `KNOWN_PARAMS` 白名单**——加新参数不用改 Python）、`default` 自动并入 defaults、类型/范围在请求入口统一校验（越界 400）、tool-info 字段元数据（min/max/default/description）直接取自声明。同一参数不得同时在 `bindings` 与 `params` 出现（启动报错）。注意 `params.default`（生效默认值）与请求字段缺省（不传=None）语义不同，前者才是 tool-info 展示的。
+4. **节点 id 含冒号**（`45:36`）照抄，yaml 里是字符串不影响。
+5. **参考槽不叫 `ref_image_N` 时**：视频模型的 `references` 段默认按 `ref_images.ref_image_{i}` 这套键名去校验聚合节点上的 input。若聚合节点收的是别的名字（典型：`MiniMaxH3ImageToVideo` 的首尾帧是**关键帧**槽 `first_frame` / `last_frame`，不是参考 token），用 `image_keys` 逐槽覆盖（`videos` / `audios` 同理有 `video_keys` / `audio_keys`），列表必须与节点列表等长，否则启动即报错。
 
 5. **参考不在同一条聚合节点上时用 `slots`（链式拓扑）**：上面的 `image_keys` 只管「参考全挂在同一个聚合节点」的模型（H3 系、Qwen autogrow）。若参考是**各自独立接线**的（Flux2 / Klein 的 `ReferenceLatent` 链：每张参考一条 `LoadImage → ImageScaleToTotalPixels → VAEEncode → ReferenceLatent`），则**没有聚合节点**——`aggregator` 可以省掉，删槽靠 `slots` 逐槽声明（与 `images` 等长）：
    - `slots[i].nodes`：该槽独占的下游节点，删槽时一并删；
